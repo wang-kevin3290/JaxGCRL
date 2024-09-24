@@ -90,6 +90,11 @@ def make_losses(
         g_repr = g_encoder.apply(normalizer_params, g_encoder_params, transitions.observation[:, obs_dim:])
         if energy_fn == "l2":
             logits = -jnp.sqrt(jnp.sum((sa_repr[:, None, :] - g_repr[None, :, :]) ** 2, axis=-1))
+        elif energy_fn == "l2_b2xfreeze":
+            batch_size = sa_repr.shape[0]
+            sa_repr = sa_repr[:batch_size // 2]
+            g_repr = jnp.concatenate([g_repr[batch_size // 2:], jax.lax.stop_gradient(g_repr[:batch_size // 2])], axis=0)
+            logits = -jnp.sqrt(jnp.sum((sa_repr[:, None, :] - g_repr[None, :, :]) ** 2, axis=-1))
         elif energy_fn == "l2_no_sqrt":
             logits = -jnp.sum((sa_repr[:, None, :] - g_repr[None, :, :]) ** 2, axis=-1)
         elif energy_fn == "l1":
@@ -156,6 +161,10 @@ def make_losses(
         elif contrastive_loss_fn == "infonce":
             l_align, l_unif = log_softmax(logits, axis=1, resubs=resubs)
             loss = -jnp.mean(jnp.diag(l_align + l_unif))
+        elif contrastive_loss_fn == "infonce_b2xfreeze":
+            l_align, l_unif = log_softmax(logits, axis=1, resubs=resubs)
+            loss = -jnp.mean(jnp.diag(l_align + l_unif))
+            #oss = -jnp.mean(jnp.trace(l_align + l_unif))
         elif contrastive_loss_fn == "infonce_backward":
             l_align, l_unif = log_softmax(logits, axis=0, resubs=resubs)
             loss = -jnp.mean(jnp.diag(l_align + l_unif))
@@ -228,8 +237,10 @@ def make_losses(
         else:
             l2_loss = 0
 
-
         I = jnp.eye(logits.shape[0])
+        if "b2xfreeze" in contrastive_loss_fn:
+            I = jnp.eye(logits.shape[0], logits.shape[1])
+        
         correct = jnp.argmax(logits, axis=1) == jnp.argmax(I, axis=1)
         logits_pos = jnp.sum(logits * I) / jnp.sum(I)
         logits_neg = jnp.sum(logits * (1 - I)) / jnp.sum(1 - I)
@@ -317,6 +328,8 @@ def make_losses(
 
         if energy_fn == "l2":
             min_q = -jnp.sqrt(jnp.sum((sa_repr - g_repr) ** 2, axis=-1))
+        elif energy_fn == "l2_b2xfreeze":
+            min_q = -jnp.sqrt(jnp.sum((sa_repr - g_repr) ** 2, axis=-1)) #just use l2 energy for actor loss here 
         elif energy_fn == "l2_no_sqrt":
             min_q = -jnp.sum((sa_repr - g_repr) ** 2, axis=-1)
         elif energy_fn == "l1":
@@ -363,7 +376,7 @@ def make_losses(
             actor_loss = alpha * log_prob - jnp.mean(min_q)
 
         if exploration_coef != 0:
-            if energy_fn == "l2":
+            if energy_fn == "l2" or energy_fn == "l2_b2xfreeze":
                 actor_loss -= exploration_coef * jnp.mean(jnp.sqrt(jnp.sum(sa_repr**2, axis=-1)))
             elif energy_fn == "dot":
                 actor_loss += exploration_coef * jnp.mean(jnp.sqrt(jnp.sum(sa_repr**2, axis=-1)))
