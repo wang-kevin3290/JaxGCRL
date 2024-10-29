@@ -26,21 +26,21 @@ from buffer import TrajectoryUniformSamplingQueue
 
 @dataclass
 class Args:
-    exp_name: str = os.path.basename(__file__)[: -len(".py")]
-    seed: int = 1
+    exp_name: str = "train" # os.path.basename(__file__)[: -len(".py")]
+    seed: int = random.randint(1, 1000) # 16
     torch_deterministic: bool = True
     cuda: bool = True
-    track: bool = False
-    wandb_project_name: str = "exploration"
-    wandb_entity: str = 'raj19'
-    wandb_mode: str = 'online'
+    track: bool = True
+    wandb_project_name: str = "clean_JaxGCRL_test"
+    wandb_entity: str = 'wang-kevin3290-princeton-university'
+    wandb_mode: str = 'offline'
     wandb_dir: str = '.'
     wandb_group: str = '.'
-    capture_video: bool = False
+    capture_video: bool = True
     checkpoint: bool = False
 
     #environment specific arguments
-    env_id: str = "ant"
+    env_id: str = "humanoid" # "ant_push" "ant_hardest_maze" "ant_big_maze" "humanoid" "ant"
     episode_length: int = 1000
     # to be filled in runtime
     obs_dim: int = 0
@@ -48,9 +48,9 @@ class Args:
     goal_end_idx: int = 0
 
     # Algorithm specific arguments
-    total_env_steps: int = 50000000
-    num_epochs: int = 50
-    num_envs: int = 1024
+    total_env_steps: int = 100000000 # 50000000
+    num_epochs: int = 100 # 50
+    num_envs: int = 512
     num_eval_envs: int = 128
     actor_lr: float = 3e-4
     critic_lr: float = 3e-4
@@ -63,7 +63,20 @@ class Args:
     min_replay_size: int = 1000
     
     unroll_length: int  = 62
-
+    
+    # ADDING IN A NETWORK WIDTH ARGUMENT
+    same_network_width: bool = False
+    network_width: int = 256
+    critic_network_width: int = 256
+    actor_network_width: int = 256
+    
+    
+    num_episodes_per_env: int = 1 #the number of episodes to sample from each env when sampling data 
+    #(to ensure number of batches is consistent as increase batch_size; for now, just a bandaid fix)
+    # should be something like batch_size / 256
+    training_steps_multiplier: int = 1 #should have the same effect as num_episodes_per_env, hmmm
+    
+    
     # to be filled in runtime
     env_steps_per_actor_step : int = 0
     """number of env steps per actor step (computed in runtime)"""
@@ -76,6 +89,7 @@ class Args:
 
 class SA_encoder(nn.Module):
     norm_type = "layer_norm"
+    network_width: int = 1024
     @nn.compact
     def __call__(self, s: jnp.ndarray, a: jnp.ndarray):
 
@@ -88,16 +102,16 @@ class SA_encoder(nn.Module):
             normalize = lambda x: x
 
         x = jnp.concatenate([s, a], axis=-1)
-        x = nn.Dense(1024, kernel_init=lecun_unfirom, bias_init=bias_init)(x)
+        x = nn.Dense(self.network_width, kernel_init=lecun_unfirom, bias_init=bias_init)(x)
         x = normalize(x)
         x = nn.swish(x)
-        x = nn.Dense(1024, kernel_init=lecun_unfirom, bias_init=bias_init)(x)
+        x = nn.Dense(self.network_width, kernel_init=lecun_unfirom, bias_init=bias_init)(x)
         x = normalize(x)
         x = nn.swish(x)
-        x = nn.Dense(1024, kernel_init=lecun_unfirom, bias_init=bias_init)(x)
+        x = nn.Dense(self.network_width, kernel_init=lecun_unfirom, bias_init=bias_init)(x)
         x = normalize(x)
         x = nn.swish(x)
-        x = nn.Dense(1024, kernel_init=lecun_unfirom, bias_init=bias_init)(x)
+        x = nn.Dense(self.network_width, kernel_init=lecun_unfirom, bias_init=bias_init)(x)
         x = normalize(x)
         x = nn.swish(x)
         x = nn.Dense(64, kernel_init=lecun_unfirom, bias_init=bias_init)(x)
@@ -105,6 +119,7 @@ class SA_encoder(nn.Module):
     
 class G_encoder(nn.Module):
     norm_type = "layer_norm"
+    network_width: int = 1024
     @nn.compact
     def __call__(self, g: jnp.ndarray):
 
@@ -116,16 +131,16 @@ class G_encoder(nn.Module):
         else:
             normalize = lambda x: x
 
-        x = nn.Dense(1024, kernel_init=lecun_unfirom, bias_init=bias_init)(g)
+        x = nn.Dense(self.network_width, kernel_init=lecun_unfirom, bias_init=bias_init)(g)
         x = normalize(x)
         x = nn.swish(x)
-        x = nn.Dense(1024, kernel_init=lecun_unfirom, bias_init=bias_init)(x)
+        x = nn.Dense(self.network_width, kernel_init=lecun_unfirom, bias_init=bias_init)(x)
         x = normalize(x)
         x = nn.swish(x)
-        x = nn.Dense(1024, kernel_init=lecun_unfirom, bias_init=bias_init)(x)
+        x = nn.Dense(self.network_width, kernel_init=lecun_unfirom, bias_init=bias_init)(x)
         x = normalize(x)
         x = nn.swish(x)
-        x = nn.Dense(1024, kernel_init=lecun_unfirom, bias_init=bias_init)(x)
+        x = nn.Dense(self.network_width, kernel_init=lecun_unfirom, bias_init=bias_init)(x)
         x = normalize(x)
         x = nn.swish(x)
         x = nn.Dense(64, kernel_init=lecun_unfirom, bias_init=bias_init)(x)
@@ -134,7 +149,7 @@ class G_encoder(nn.Module):
 class Actor(nn.Module):
     action_size: int
     norm_type = "layer_norm"
-
+    network_width: int = 1024
     LOG_STD_MAX = 2
     LOG_STD_MIN = -5
 
@@ -147,17 +162,19 @@ class Actor(nn.Module):
 
         lecun_unfirom = variance_scaling(1/3, "fan_in", "uniform")
         bias_init = nn.initializers.zeros
+        
+        print(f"x.shape: {x.shape}", flush=True)
 
-        x = nn.Dense(1024, kernel_init=lecun_unfirom, bias_init=bias_init)(x)
+        x = nn.Dense(self.network_width, kernel_init=lecun_unfirom, bias_init=bias_init)(x)
         x = normalize(x)
         x = nn.swish(x)
-        x = nn.Dense(1024, kernel_init=lecun_unfirom, bias_init=bias_init)(x)
+        x = nn.Dense(self.network_width, kernel_init=lecun_unfirom, bias_init=bias_init)(x)
         x = normalize(x)
         x = nn.swish(x)
-        x = nn.Dense(1024, kernel_init=lecun_unfirom, bias_init=bias_init)(x)
+        x = nn.Dense(self.network_width, kernel_init=lecun_unfirom, bias_init=bias_init)(x)
         x = normalize(x)
         x = nn.swish(x)
-        x = nn.Dense(1024, kernel_init=lecun_unfirom, bias_init=bias_init)(x)
+        x = nn.Dense(self.network_width, kernel_init=lecun_unfirom, bias_init=bias_init)(x)
         x = normalize(x)
         x = nn.swish(x)
 
@@ -184,7 +201,7 @@ class Transition(NamedTuple):
     action: jnp.ndarray
     reward: jnp.ndarray
     discount: jnp.ndarray
-    extras: jnp.ndarray = ()  
+    extras: jnp.ndarray = ()
 
 def load_params(path: str):
     with epath.Path(path).open('rb') as fin:
@@ -195,17 +212,34 @@ def save_params(path: str, params: Any):
     """Saves parameters in flax format."""
     with epath.Path(path).open('wb') as fout:
         fout.write(pickle.dumps(params))
-                   
+
 if __name__ == "__main__":
 
     args = tyro.cli(Args)
+    
+    # Print every arg
+    print("Arguments:", flush=True)
+    for arg, value in vars(args).items():
+        print(f"{arg}: {value}", flush=True)
+    print("\n", flush=True)
 
     args.env_steps_per_actor_step = args.num_envs * args.unroll_length
-    args.num_prefill_env_steps = args.min_replay_size * args.num_envs
-    args.num_prefill_actor_steps = np.ceil(args.min_replay_size / args.unroll_length)
-    args.num_training_steps_per_epoch = (args.total_env_steps - args.num_prefill_env_steps) // (args.num_epochs * args.env_steps_per_actor_step)
+    print(f"env_steps_per_actor_step: {args.env_steps_per_actor_step}", flush=True)
 
-    run_name = f"{args.env_id}__{args.exp_name}__{args.seed}__{int(time.time())}"
+    args.num_prefill_env_steps = args.min_replay_size * args.num_envs
+    print(f"num_prefill_env_steps: {args.num_prefill_env_steps}", flush=True)
+
+    args.num_prefill_actor_steps = np.ceil(args.min_replay_size / args.unroll_length)
+    print(f"num_prefill_actor_steps: {args.num_prefill_actor_steps}", flush=True)
+
+    args.num_training_steps_per_epoch = (args.total_env_steps - args.num_prefill_env_steps) // (args.num_epochs * args.env_steps_per_actor_step)
+    print(f"num_training_steps_per_epoch: {args.num_training_steps_per_epoch}", flush=True)
+
+    if args.same_network_width:
+        args.critic_network_width = args.network_width
+        args.actor_network_width = args.network_width
+    
+    run_name = f"{args.env_id}_{args.batch_size}_{args.total_env_steps}_nenvs:{args.num_envs}_criticwidth:{args.critic_network_width}_actorwidth:{args.actor_network_width}_epspenv:{args.num_episodes_per_env}_trainmult:{args.training_steps_multiplier}_{int(time.time())}_{args.seed}"
 
     if args.track:
 
@@ -263,6 +297,42 @@ if __name__ == "__main__":
         args.obs_dim = 29
         args.goal_start_idx = 0
         args.goal_end_idx = 2
+    
+    elif args.env_id == "ant_ball":
+        from envs.ant_ball import AntBall
+        env = AntBall(
+            backend="spring",
+            exclude_current_positions_from_observation=False,
+            terminate_when_unhealthy=True,
+        )
+
+        args.obs_dim = 31
+        args.goal_start_idx = -4
+        args.goal_end_idx = -2
+
+    elif args.env_id == "ant_push":
+        from envs.ant_push import AntPush
+        env = AntPush(
+            backend="spring",
+            exclude_current_positions_from_observation=False,
+            terminate_when_unhealthy=True,
+        )
+
+        args.obs_dim = 31
+        args.goal_start_idx = 0
+        args.goal_end_idx = 2
+    
+    elif args.env_id == "humanoid":
+        from envs.humanoid import Humanoid
+        env = Humanoid(
+            backend="spring",
+            exclude_current_positions_from_observation=False,
+            terminate_when_unhealthy=True,
+        )
+
+        args.obs_dim = 268
+        args.goal_start_idx = 0
+        args.goal_end_idx = 3
 
     else:
         raise NotImplementedError
@@ -277,10 +347,12 @@ if __name__ == "__main__":
     env_keys = jax.random.split(env_key, args.num_envs)
     env_state = jax.jit(env.reset)(env_keys)
     env.step = jax.jit(env.step)
+    
+    print(f"obs_size: {obs_size}, action_size: {action_size}", flush=True)
 
     # Network setup
     # Actor
-    actor = Actor(action_size=action_size)
+    actor = Actor(action_size=action_size, network_width=args.actor_network_width)
     actor_state = TrainState.create(
         apply_fn=actor.apply,
         params=actor.init(actor_key, np.ones([1, obs_size])),
@@ -288,11 +360,11 @@ if __name__ == "__main__":
     )
 
     # Critic
-    sa_encoder = SA_encoder()
+    sa_encoder = SA_encoder(network_width=args.critic_network_width)
     sa_encoder_params = sa_encoder.init(sa_key, np.ones([1, args.obs_dim]), np.ones([1, action_size]))
-    g_encoder = G_encoder()
+    g_encoder = G_encoder(network_width=args.critic_network_width)
     g_encoder_params = g_encoder.init(g_key, np.ones([1, args.goal_end_idx - args.goal_start_idx]))
-    c = jnp.asarray(0.0, dtype=jnp.float32)
+    # c = jnp.asarray(0.0, dtype=jnp.float32) (NOT USED IN CODE, WHATS THIS)
     critic_state = TrainState.create(
         apply_fn=None,
         params={"sa_encoder": sa_encoder_params, "g_encoder": g_encoder_params},
@@ -300,7 +372,7 @@ if __name__ == "__main__":
     )
 
     # Entropy coefficient
-    target_entropy = -0.5 * action_size
+    target_entropy = -0.5 * action_size # action_size = 8 for ant, 17 for humanoid, etc
     log_alpha = jnp.asarray(0.0, dtype=jnp.float32)
     alpha_state = TrainState.create(
         apply_fn=None,
@@ -330,7 +402,7 @@ if __name__ == "__main__":
             "state_extras": {
                 "truncation": 0.0,
                 "seed": 0.0,
-            }        
+            }
         },
     )
 
@@ -350,7 +422,7 @@ if __name__ == "__main__":
         )
     buffer_state = jax.jit(replay_buffer.init)(buffer_key)
 
-    def deterministic_actor_step(training_state, env, env_state, extra_fields):        
+    def deterministic_actor_step(training_state, env, env_state, extra_fields):
         means, _ = actor.apply(training_state.actor_state.params, env_state.obs)
         actions = nn.tanh( means )
 
@@ -365,7 +437,7 @@ if __name__ == "__main__":
             extras={"state_extras": state_extras},
         )
     
-    def actor_step(actor_state, env, env_state, key, extra_fields):        
+    def actor_step(actor_state, env, env_state, key, extra_fields):
         means, log_stds = actor.apply(actor_state.params, env_state.obs)
         stds = jnp.exp(log_stds)
         actions = nn.tanh( means + stds * jax.random.normal(key, shape=means.shape, dtype=means.dtype) )
@@ -384,7 +456,7 @@ if __name__ == "__main__":
     @jax.jit
     def get_experience(actor_state, env_state, buffer_state, key):
         @jax.jit
-        def f(carry, unused_t):
+        def f(carry, unused_t): #conducts a single actor step in environment
             env_state, current_key = carry
             current_key, next_key = jax.random.split(current_key)
             env_state, transition = actor_step(actor_state, env, env_state, current_key, extra_fields=("truncation", "seed"))
@@ -522,9 +594,12 @@ if __name__ == "__main__":
         return (training_state, key,), metrics
 
     @jax.jit
-    def training_step(training_state, env_state, buffer_state, key):
+    def training_step(training_state, env_state, buffer_state, key, t):
         experience_key1, experience_key2, sampling_key, training_key = jax.random.split(key, 4)
 
+        # print(f"Current training step: {t}")
+        # if t % args.training_steps_multiplier == 0:
+        
         # update buffer
         env_state, buffer_state = get_experience(
             training_state.actor_state,
@@ -536,27 +611,77 @@ if __name__ == "__main__":
         training_state = training_state.replace(
             env_steps=training_state.env_steps + args.env_steps_per_actor_step,
         )
+            
+        # def collect_data():
+        #     new_env_state, new_buffer_state = get_experience(
+        #         training_state.actor_state,
+        #         env_state,
+        #         buffer_state,
+        #         experience_key1,
+        #     )
+        #     new_training_state = training_state.replace(
+        #         env_steps=training_state.env_steps + args.env_steps_per_actor_step
+        #     )
+        #     return new_training_state, new_env_state, new_buffer_state
 
-        # sample actor-step worth of transitions
-        buffer_state, transitions = replay_buffer.sample(buffer_state)
+        # def skip_data_collection():
+        #     return training_state, env_state, buffer_state
+
+        # training_state, env_state, buffer_state = jax.lax.cond(
+        #     t % args.training_steps_multiplier == 0,
+        #     collect_data,
+        #     skip_data_collection
+        # )
+
+        # # sample actor-step worth of transitions
+        # buffer_state, transitions = replay_buffer.sample(buffer_state)
+        # print(f"transitions.observation.shape: {transitions.observation.shape}", flush=True)
+        
+        # Sample actor-step worth of transitions N times and concatenate them (NOTE: just a bandaid fix right now, currently can sample repeat data)
+        
+        transitions_list = []
+        for _ in range(args.num_episodes_per_env):
+            buffer_state, new_transitions = replay_buffer.sample(buffer_state)
+            transitions_list.append(new_transitions)
+
+        # Concatenate all sampled transitions
+        transitions = jax.tree_util.tree_map(
+            lambda *arrays: jnp.concatenate(arrays, axis=0),
+            *transitions_list
+        )
+
+        print(f"transitions.observation.shape (after {args.num_episodes_per_env} episodes per env): {transitions.observation.shape}", flush=True)   
 
         # process transitions for training
         batch_keys = jax.random.split(sampling_key, transitions.observation.shape[0])
         transitions = jax.vmap(TrajectoryUniformSamplingQueue.flatten_crl_fn, in_axes=(None, 0, 0))(
             (args.gamma, args.obs_dim, args.goal_start_idx, args.goal_end_idx), transitions, batch_keys
-        )  
+        )
+        print(f"transitions.observation.shape (after flatten_crl_fn): {transitions.observation.shape}", flush=True)
+
         
         transitions = jax.tree_util.tree_map(
             lambda x: jnp.reshape(x, (-1,) + x.shape[2:], order="F"),
             transitions,
         )
+        print(f"transitions.observation.shape (after first reshape): {transitions.observation.shape}", flush=True)
+        
+              
         permutation = jax.random.permutation(experience_key2, len(transitions.observation))
         transitions = jax.tree_util.tree_map(lambda x: x[permutation], transitions)
+        
+        # I added this code, so as to ensure len(transitions.observation) is divisible by batch_size
+        num_full_batches = len(transitions.observation) // args.batch_size
+        transitions = jax.tree_util.tree_map(lambda x: x[:num_full_batches * args.batch_size], transitions)
+        print(f"transitions.observation.shape (after ensuring divisibility by batch_size): {transitions.observation.shape}", flush=True)
+        
         transitions = jax.tree_util.tree_map(
             lambda x: jnp.reshape(x, (-1, args.batch_size) + x.shape[1:]),
             transitions,
         )
 
+        print(f"transitions.observation.shape (after processing): {transitions.observation.shape}", flush=True)
+        
         # take actor-step worth of training-step
         (training_state, _,), metrics = jax.lax.scan(sgd_step, (training_state, training_key), transitions)
 
@@ -570,13 +695,15 @@ if __name__ == "__main__":
         key,
     ):  
         @jax.jit
-        def f(carry, unused_t):
+        def f(carry, t):
             ts, es, bs, k = carry
             k, train_key = jax.random.split(k, 2)
-            (ts, es, bs,), metrics = training_step(ts, es, bs, train_key)
+            (ts, es, bs,), metrics = training_step(ts, es, bs, train_key, t)
             return (ts, es, bs, k), metrics
 
-        (training_state, env_state, buffer_state, key), metrics = jax.lax.scan(f, (training_state, env_state, buffer_state, key), (), length=args.num_training_steps_per_epoch)
+        #(training_state, env_state, buffer_state, key), metrics = jax.lax.scan(f, (training_state, env_state, buffer_state, key), (), length=args.num_training_steps_per_epoch * args.training_steps_multiplier)
+        (training_state, env_state, buffer_state, key), metrics = jax.lax.scan(f, (training_state, env_state, buffer_state, key), jnp.arange(args.num_training_steps_per_epoch * args.training_steps_multiplier))
+
         
         metrics["buffer_current_size"] = replay_buffer.size(buffer_state)
         return training_state, env_state, buffer_state, metrics
@@ -597,7 +724,8 @@ if __name__ == "__main__":
     )
 
     training_walltime = 0
-    print('starting training....')
+    print('starting training....', flush=True)
+    start_time = time.time()  # Add this line before the training loop
     for ne in range(args.num_epochs):
         
         t = time.time()
@@ -621,7 +749,7 @@ if __name__ == "__main__":
 
         metrics = evaluator.run_evaluation(training_state, metrics)
 
-        print(metrics)
+        print(f"epoch {ne} out of {args.num_epochs} complete. metrics: {metrics}", flush=True)
 
         if args.checkpoint:
             # Save current policy and critic params.
@@ -634,6 +762,10 @@ if __name__ == "__main__":
 
             if args.wandb_mode == 'offline':
                 trigger_sync()
+        
+        hours_passed = (time.time() - start_time) / 3600
+        print(f"Time elapsed: {hours_passed:.3f} hours", flush=True)
+
     
     if args.checkpoint:
         # Save current policy and critic params.
