@@ -76,6 +76,9 @@ class Args:
     # should be something like batch_size / 256
     training_steps_multiplier: int = 1 #should have the same effect as num_episodes_per_env, hmmm
     
+    mrn: int = 0
+    memory_bank: int = 0
+    
     
     # to be filled in runtime
     env_steps_per_actor_step : int = 0
@@ -145,6 +148,30 @@ class G_encoder(nn.Module):
         x = nn.swish(x)
         x = nn.Dense(64, kernel_init=lecun_unfirom, bias_init=bias_init)(x)
         return x
+
+
+class Sym(nn.Module):
+    dim_hidden: int = 176  # First hidden layer dimension, 176 based off the paper
+    dim_embed: int = 64    # Final output size
+
+    @nn.compact
+    def __call__(self, x: jnp.ndarray):
+        x = nn.Dense(self.dim_hidden)(x)  # First hidden layer (176 units)
+        x = nn.relu(x)  # ReLU activation
+        x = nn.Dense(self.dim_embed)(x)  # Final embedding layer (64 units)
+        return x
+
+class Asym(nn.Module):
+    dim_hidden: int = 176  # First hidden layer dimension
+    dim_embed: int = 64    # Final output size
+
+    @nn.compact
+    def __call__(self, x: jnp.ndarray):
+        x = nn.Dense(self.dim_hidden)(x)  # First hidden layer (176 units)
+        x = nn.relu(x)  # ReLU activation
+        x = nn.Dense(self.dim_embed)(x)  # Final embedding layer (64 units)
+        return x
+
 
 class Actor(nn.Module):
     action_size: int
@@ -239,7 +266,7 @@ if __name__ == "__main__":
         args.critic_network_width = args.network_width
         args.actor_network_width = args.network_width
     
-    run_name = f"{args.env_id}_{args.batch_size}_{args.total_env_steps}_nenvs:{args.num_envs}_criticwidth:{args.critic_network_width}_actorwidth:{args.actor_network_width}_epspenv:{args.num_episodes_per_env}_trainmult:{args.training_steps_multiplier}_{int(time.time())}_{args.seed}"
+    run_name = f"{args.env_id}_{args.batch_size}_{args.total_env_steps}_nenvs:{args.num_envs}_criticwidth:{args.critic_network_width}_actorwidth:{args.actor_network_width}_epspenv:{args.num_episodes_per_env}_trainmult:{args.training_steps_multiplier}_mrn:{args.mrn}_buffer:{args.max_replay_size}_{args.seed}"
 
     if args.track:
 
@@ -270,7 +297,7 @@ if __name__ == "__main__":
     random.seed(args.seed)
     np.random.seed(args.seed)
     key = jax.random.PRNGKey(args.seed)
-    key, buffer_key, env_key, eval_env_key, actor_key, sa_key, g_key = jax.random.split(key, 7)
+    key, buffer_key, env_key, eval_env_key, actor_key, sa_key, g_key, sym_key, asym_key = jax.random.split(key, 9)
 
     # Environment setup    
     if args.env_id == "ant":
@@ -365,11 +392,32 @@ if __name__ == "__main__":
     g_encoder = G_encoder(network_width=args.critic_network_width)
     g_encoder_params = g_encoder.init(g_key, np.ones([1, args.goal_end_idx - args.goal_start_idx]))
     # c = jnp.asarray(0.0, dtype=jnp.float32) (NOT USED IN CODE, WHATS THIS)
-    critic_state = TrainState.create(
-        apply_fn=None,
-        params={"sa_encoder": sa_encoder_params, "g_encoder": g_encoder_params},
-        tx=optax.adam(learning_rate=args.critic_lr),
-    )
+    
+    sym = Sym()
+    sym_params = sym.init(sym_key, np.ones([1, 64]))
+    asym = Asym()
+    asym_params = asym.init(asym_key, np.ones([1, 64]))
+    
+    
+    if not args.mrn:
+        critic_state = TrainState.create(
+            apply_fn=None,
+            params={
+                "sa_encoder": sa_encoder_params, 
+                "g_encoder": g_encoder_params
+                },
+            tx=optax.adam(learning_rate=args.critic_lr),
+        )
+    else:
+        critic_state = TrainState.create(
+            apply_fn=None,
+            params={
+                "sa_encoder": sa_encoder_params, 
+                "g_encoder": g_encoder_params,
+                "sym": sym_params,
+                "asym": asym_params},
+            tx=optax.adam(learning_rate=args.critic_lr),
+        )
 
     # Entropy coefficient
     target_entropy = -0.5 * action_size # action_size = 8 for ant, 17 for humanoid, etc
@@ -547,9 +595,26 @@ if __name__ == "__main__":
             sa_repr = sa_encoder.apply(sa_encoder_params, obs, action)
             g_repr = g_encoder.apply(g_encoder_params, transitions.observation[:, args.obs_dim:])
             
-            # InfoNCE
-            logits = -jnp.sqrt(jnp.sum((sa_repr[:, None, :] - g_repr[None, :, :]) ** 2, axis=-1))       # shape = BxB
-            critic_loss = -jnp.mean(jnp.diag(logits) - jax.nn.logsumexp(logits, axis=1))
+            
+            if args.mrn:
+                sym1 = sym.apply(critic_params['sym'], sa_repr)                    # (B, 64)
+                sym2 = sym.apply(critic_params['sym'], g_repr)                     # (B, 64)
+                dist_s = jnp.sum((sym1[:, None, :] - sym2[None, :, :]) ** 2, axis=-1) + 1e-6 # (B, B)
+
+                # Asymmetric path
+                asym1 = asym.apply(critic_params['asym'], sa_repr)                # (B, 64)
+                asym2 = asym.apply(critic_params['asym'], g_repr)                 # (B, 64)
+                res = jax.nn.relu(asym1[:, None, :] - asym2[None, :, :])         # (B, B, 64)
+                dist_a = jnp.max(res, axis=-1) + 1e-6                              # (B, B)
+
+                # Combining distances
+                logits = -(dist_s + dist_a)                                       # (B, B)
+                critic_loss = -jnp.mean(jnp.diag(logits) - jax.nn.logsumexp(logits, axis=1))  # scalar
+
+            else:
+                # InfoNCE
+                logits = -jnp.sqrt(jnp.sum((sa_repr[:, None, :] - g_repr[None, :, :]) ** 2, axis=-1))       # shape = BxB
+                critic_loss = -jnp.mean(jnp.diag(logits) - jax.nn.logsumexp(logits, axis=1))
 
             # logsumexp regularisation
             logsumexp = jax.nn.logsumexp(logits + 1e-6, axis=1)
