@@ -13,6 +13,7 @@ import flax.linen as nn
 import jax.numpy as jnp
 
 from brax import envs
+from brax.io import html, model
 from etils import epath
 from dataclasses import dataclass
 from collections import namedtuple
@@ -21,19 +22,20 @@ from wandb_osh.hooks import TriggerWandbSyncHook
 from flax.training.train_state import TrainState
 from flax.linen.initializers import variance_scaling
 
+from src import utils
 from evaluator import CrlEvaluator
 from buffer import TrajectoryUniformSamplingQueue
-from memory_bank import MemoryBank, MemoryBankState
 
 @dataclass
 class Args:
     exp_name: str = "train" # os.path.basename(__file__)[: -len(".py")]
-    seed: int = random.randint(1, 1000) # 16
+    seed: int = 14
     torch_deterministic: bool = True
     cuda: bool = True
     track: bool = True
-    wandb_project_name: str = "clean_JaxGCRL_test"
-    wandb_entity: str = 'wang-kevin3290-princeton-university'
+    wandb_project_name: str = "Ant Push Different Widths"
+    # wandb_entity: str = 'ishaanjav-princeton'
+    wandb_entity: str = 'ij9461-princeton-university'
     wandb_mode: str = 'offline'
     wandb_dir: str = '.'
     wandb_group: str = '.'
@@ -41,7 +43,7 @@ class Args:
     checkpoint: bool = False
 
     #environment specific arguments
-    env_id: str = "humanoid" # "ant_push" "ant_hardest_maze" "ant_big_maze" "humanoid" "ant"
+    env_id: str = "ant" #"ant_hardest_maze" #"ant_big_maze" #"ant_ball" #"humanoid" #"ant"
     episode_length: int = 1000
     # to be filled in runtime
     obs_dim: int = 0
@@ -49,8 +51,8 @@ class Args:
     goal_end_idx: int = 0
 
     # Algorithm specific arguments
-    total_env_steps: int = 100000000 # 50000000
-    num_epochs: int = 100 # 50
+    total_env_steps: int = 10000000 # 50000000
+    num_epochs: int = 10 # 50
     num_envs: int = 512
     num_eval_envs: int = 128
     actor_lr: float = 3e-4
@@ -59,42 +61,15 @@ class Args:
     batch_size: int = 256
     gamma: float = 0.99
     logsumexp_penalty_coeff: float = 0.1
-    
-    #adding in a batch_size_multiplier argument for critic vs. actor batch size
-    critic_batch_size_multiplier: float = 1.0 #this has to be less than or equal to 1
-    actor_batch_size_multiplier: float = 1.0 #this has to be less than 1
 
     max_replay_size: int = 10000
     min_replay_size: int = 1000
     
     unroll_length: int  = 62
+    mrn: bool = False
     
     # ADDING IN A NETWORK WIDTH ARGUMENT
-    same_network_width: int = 0
-    network_width: int = 256
-    critic_network_width: int = 256
-    actor_network_width: int = 256
-    
-    
-    num_episodes_per_env: int = 1 #the number of episodes to sample from each env when sampling data 
-    #(to ensure number of batches is consistent as increase batch_size; for now, just a bandaid fix)
-    # should be something like batch_size / 256
-    training_steps_multiplier: int = 1 #should have the same effect as num_episodes_per_env, hmmm
-    use_all_batches: int = 0 # if 1, use all batches; if 0, use a random subset of batches
-    num_sgd_batches_per_training_step: int = 200 # this parameter so as to hold the number of batches constant (no matter batch_size, etc)
-    
-    mrn: int = 0
-    memory_bank: int = 0
-    memory_bank_size: int = batch_size # this can be modified too
-    
-    batchdiv2: int = 0 
-    # if 1, freeze gradients for second half of batch
-    # if 2, split in half along sa and freeze second half of g (Eysenbach ablation, remember it's forward loss)
-    #
-    # use batch_size * 2 and split in half and freeze gradients and all that (Eysenbach ablation), does not 
-    # TODO: if 2, modifies actor such that it uses the half batch size (isolate for critic ablation)
-    # can add 3, 4, etc (if diff between 1 and 2, maybe for batch_size ablation we need to have separate for actor and critic)
-    # add more for instead of discarding second half, just freeze gradients for second half so symmetric with first
+    network_width: int = 1024
     
     
     # to be filled in runtime
@@ -137,6 +112,30 @@ class SA_encoder(nn.Module):
         x = nn.Dense(64, kernel_init=lecun_unfirom, bias_init=bias_init)(x)
         return x
     
+
+class Sym(nn.Module):
+    dim_hidden: int = 176  # First hidden layer dimension, 176 based off the paper
+    dim_embed: int = 64    # Final output size
+
+    @nn.compact
+    def __call__(self, x: jnp.ndarray):
+        x = nn.Dense(self.dim_hidden)(x)  # First hidden layer (176 units)
+        x = nn.relu(x)  # ReLU activation
+        x = nn.Dense(self.dim_embed)(x)  # Final embedding layer (64 units)
+        return x
+
+class Asym(nn.Module):
+    dim_hidden: int = 176  # First hidden layer dimension
+    dim_embed: int = 64    # Final output size
+
+    @nn.compact
+    def __call__(self, x: jnp.ndarray):
+        x = nn.Dense(self.dim_hidden)(x)  # First hidden layer (176 units)
+        x = nn.relu(x)  # ReLU activation
+        x = nn.Dense(self.dim_embed)(x)  # Final embedding layer (64 units)
+        return x
+    
+    
 class G_encoder(nn.Module):
     norm_type = "layer_norm"
     network_width: int = 1024
@@ -166,30 +165,6 @@ class G_encoder(nn.Module):
         x = nn.Dense(64, kernel_init=lecun_unfirom, bias_init=bias_init)(x)
         return x
 
-
-class Sym(nn.Module):
-    dim_hidden: int = 176  # First hidden layer dimension, 176 based off the paper
-    dim_embed: int = 64    # Final output size
-
-    @nn.compact
-    def __call__(self, x: jnp.ndarray):
-        x = nn.Dense(self.dim_hidden)(x)  # First hidden layer (176 units)
-        x = nn.relu(x)  # ReLU activation
-        x = nn.Dense(self.dim_embed)(x)  # Final embedding layer (64 units)
-        return x
-
-class Asym(nn.Module):
-    dim_hidden: int = 176  # First hidden layer dimension
-    dim_embed: int = 64    # Final output size
-
-    @nn.compact
-    def __call__(self, x: jnp.ndarray):
-        x = nn.Dense(self.dim_hidden)(x)  # First hidden layer (176 units)
-        x = nn.relu(x)  # ReLU activation
-        x = nn.Dense(self.dim_embed)(x)  # Final embedding layer (64 units)
-        return x
-
-
 class Actor(nn.Module):
     action_size: int
     norm_type = "layer_norm"
@@ -207,7 +182,7 @@ class Actor(nn.Module):
         lecun_unfirom = variance_scaling(1/3, "fan_in", "uniform")
         bias_init = nn.initializers.zeros
         
-        print(f"x.shape: {x.shape}", flush=True)
+        # print(f"x.shape: {x.shape}", flush=True)
 
         x = nn.Dense(self.network_width, kernel_init=lecun_unfirom, bias_init=bias_init)(x)
         x = normalize(x)
@@ -230,7 +205,6 @@ class Actor(nn.Module):
 
         return mean, log_std
 
-
 @flax.struct.dataclass
 class TrainingState:
     """Contains training state for the learner"""
@@ -239,7 +213,6 @@ class TrainingState:
     actor_state: TrainState
     critic_state: TrainState
     alpha_state: TrainState
-    memory_bank_state: MemoryBankState
 
 class Transition(NamedTuple):
     """Container for a transition"""
@@ -258,6 +231,7 @@ def save_params(path: str, params: Any):
     """Saves parameters in flax format."""
     with epath.Path(path).open('wb') as fout:
         fout.write(pickle.dumps(params))
+
 
 if __name__ == "__main__":
 
@@ -281,13 +255,8 @@ if __name__ == "__main__":
     args.num_training_steps_per_epoch = (args.total_env_steps - args.num_prefill_env_steps) // (args.num_epochs * args.env_steps_per_actor_step)
     print(f"num_training_steps_per_epoch: {args.num_training_steps_per_epoch}", flush=True)
 
-    if args.same_network_width:
-        args.critic_network_width = args.network_width
-        args.actor_network_width = args.network_width
-    
-    run_name = f"{args.env_id}_{args.batch_size}_critbx:{args.critic_batch_size_multiplier}_actbx:{args.actor_batch_size_multiplier}_batchdiv2:{args.batchdiv2}_{args.total_env_steps}_nenvs:{args.num_envs}_criticwidth:{args.critic_network_width}_actorwidth:{args.actor_network_width}_epspenv:{args.num_episodes_per_env}_trainmult:{args.training_steps_multiplier}_mrn:{args.mrn}_memorybank:{args.memory_bank}_sgdbatchesptrainstep:{args.num_sgd_batches_per_training_step}_useallbatches:{args.use_all_batches}_{args.seed}"
-    print(f"run_name: {run_name}", flush=True)
-    
+    run_name = f"{args.env_id}_{args.batch_size}_{args.total_env_steps}_nenvs:{args.num_envs}_width:{args.network_width}_{int(time.time())}_{args.seed}"
+
     if args.track:
 
         if args.wandb_group ==  '.':
@@ -317,7 +286,7 @@ if __name__ == "__main__":
     random.seed(args.seed)
     np.random.seed(args.seed)
     key = jax.random.PRNGKey(args.seed)
-    key, buffer_key, env_key, eval_env_key, actor_key, sa_key, g_key, sym_key, asym_key, memory_bank_key = jax.random.split(key, 10)
+    key, buffer_key, env_key, eval_env_key, actor_key, sa_key, g_key = jax.random.split(key, 7)
 
     # Environment setup    
     if args.env_id == "ant":
@@ -360,7 +329,7 @@ if __name__ == "__main__":
     elif args.env_id == "ant_push":
         from envs.ant_push import AntPush
         env = AntPush(
-            backend="spring",
+            backend="mjx",
             exclude_current_positions_from_observation=False,
             terminate_when_unhealthy=True,
         )
@@ -399,7 +368,7 @@ if __name__ == "__main__":
 
     # Network setup
     # Actor
-    actor = Actor(action_size=action_size, network_width=args.actor_network_width)
+    actor = Actor(action_size=action_size, network_width=args.network_width)
     actor_state = TrainState.create(
         apply_fn=actor.apply,
         params=actor.init(actor_key, np.ones([1, obs_size])),
@@ -407,57 +376,44 @@ if __name__ == "__main__":
     )
 
     # Critic
-    sa_encoder = SA_encoder(network_width=args.critic_network_width)
+    sa_encoder = SA_encoder(network_width=args.network_width)
     sa_encoder_params = sa_encoder.init(sa_key, np.ones([1, args.obs_dim]), np.ones([1, action_size]))
-    g_encoder = G_encoder(network_width=args.critic_network_width)
+    g_encoder = G_encoder(network_width=args.network_width)
     g_encoder_params = g_encoder.init(g_key, np.ones([1, args.goal_end_idx - args.goal_start_idx]))
     # c = jnp.asarray(0.0, dtype=jnp.float32) (NOT USED IN CODE, WHATS THIS)
-    
+    # Sym and Asym networks
     sym = Sym()
-    sym_params = sym.init(sym_key, np.ones([1, 64]))
+    # sym_params = sym.init(key, jnp.ones([1, args.network_width]))
+    # Update `Sym` initialization to pass an input of shape (32, args.network_width)
+    sym_params = sym.init(key, jnp.ones([1, 64]))
     asym = Asym()
-    asym_params = asym.init(asym_key, np.ones([1, 64]))
-    
-    
-    if not args.mrn:
-        critic_state = TrainState.create(
-            apply_fn=None,
-            params={
-                "sa_encoder": sa_encoder_params, 
-                "g_encoder": g_encoder_params
-                },
-            tx=optax.adam(learning_rate=args.critic_lr),
-        )
-    else:
-        critic_state = TrainState.create(
-            apply_fn=None,
-            params={
-                "sa_encoder": sa_encoder_params, 
-                "g_encoder": g_encoder_params,
-                "sym": sym_params,
-                "asym": asym_params},
-            tx=optax.adam(learning_rate=args.critic_lr),
-        )
+    asym_params = asym.init(key, jnp.ones([1, 64]))
+
+    # Add Sym and Asym to critic parameters
+    critic_state = TrainState.create(
+        apply_fn=None,
+        params={
+            "sa_encoder": sa_encoder_params,
+            "g_encoder": g_encoder_params,
+            "sym": sym_params,
+            "asym": asym_params
+        },
+        tx=optax.adam(learning_rate=args.critic_lr),
+    )
+    # critic_state = TrainState.create(
+    #     apply_fn=None,
+    #     params={"sa_encoder": sa_encoder_params, "g_encoder": g_encoder_params},
+    #     tx=optax.adam(learning_rate=args.critic_lr),
+    # )
 
     # Entropy coefficient
-    target_entropy = -0.5 * action_size # action_size = 8 for ant, 17 for humanoid, etc
+    target_entropy = -0.5 * action_size
     log_alpha = jnp.asarray(0.0, dtype=jnp.float32)
     alpha_state = TrainState.create(
         apply_fn=None,
         params={"log_alpha": log_alpha},
         tx=optax.adam(learning_rate=args.alpha_lr),
     )
-    
-    def jit_wrap(memory_bank):
-        memory_bank.insert = jax.jit(memory_bank.insert)
-        memory_bank.sample = jax.jit(memory_bank.sample)
-        return memory_bank
-    
-    if args.memory_bank:
-        memory_bank = jit_wrap(MemoryBank(memory_bank_size=args.memory_bank_size, feature_dim=64, batch_size=args.batch_size))
-        memory_bank_state = jax.jit(memory_bank.init)(memory_bank_key)
-    else:
-        memory_bank_state = None
     
     # Trainstate
     training_state = TrainingState(
@@ -466,7 +422,6 @@ if __name__ == "__main__":
         actor_state=actor_state,
         critic_state=critic_state,
         alpha_state=alpha_state,
-        memory_bank_state=memory_bank_state,
     )
 
     #Replay Buffer
@@ -482,7 +437,7 @@ if __name__ == "__main__":
             "state_extras": {
                 "truncation": 0.0,
                 "seed": 0.0,
-            }
+            }        
         },
     )
 
@@ -502,7 +457,7 @@ if __name__ == "__main__":
         )
     buffer_state = jax.jit(replay_buffer.init)(buffer_key)
 
-    def deterministic_actor_step(training_state, env, env_state, extra_fields):
+    def deterministic_actor_step(training_state, env, env_state, extra_fields):        
         means, _ = actor.apply(training_state.actor_state.params, env_state.obs)
         actions = nn.tanh( means )
 
@@ -517,7 +472,7 @@ if __name__ == "__main__":
             extras={"state_extras": state_extras},
         )
     
-    def actor_step(actor_state, env, env_state, key, extra_fields):
+    def actor_step(actor_state, env, env_state, key, extra_fields):        
         means, log_stds = actor.apply(actor_state.params, env_state.obs)
         stds = jnp.exp(log_stds)
         actions = nn.tanh( means + stds * jax.random.normal(key, shape=means.shape, dtype=means.dtype) )
@@ -536,7 +491,7 @@ if __name__ == "__main__":
     @jax.jit
     def get_experience(actor_state, env_state, buffer_state, key):
         @jax.jit
-        def f(carry, unused_t): #conducts a single actor step in environment
+        def f(carry, unused_t):
             env_state, current_key = carry
             current_key, next_key = jax.random.split(current_key)
             env_state, transition = actor_step(actor_state, env, env_state, current_key, extra_fields=("truncation", "seed"))
@@ -569,11 +524,6 @@ if __name__ == "__main__":
 
     @jax.jit
     def update_actor_and_alpha(transitions, training_state, key):
-        actor_batch_size = int(args.batch_size * args.actor_batch_size_multiplier)
-        transitions = jax.tree_util.tree_map(
-            lambda x: x[:actor_batch_size], 
-            transitions
-        )
         def actor_loss(actor_params, critic_params, log_alpha, transitions, key):
             obs = transitions.observation           # expected_shape = batch_size, obs_size + goal_size
             state = obs[:, :args.obs_dim]
@@ -623,77 +573,57 @@ if __name__ == "__main__":
 
     @jax.jit
     def update_critic(transitions, training_state, key):
-        critic_batch_size = int(args.batch_size * args.critic_batch_size_multiplier)
-        transitions = jax.tree_util.tree_map(
-            lambda x: x[:critic_batch_size], 
-            transitions
-        )
         def critic_loss(critic_params, transitions, key):
             sa_encoder_params, g_encoder_params = critic_params["sa_encoder"], critic_params["g_encoder"]
-            
+
             obs = transitions.observation[:, :args.obs_dim]
             action = transitions.action
-            
+
             sa_repr = sa_encoder.apply(sa_encoder_params, obs, action)
             g_repr = g_encoder.apply(g_encoder_params, transitions.observation[:, args.obs_dim:])
-                
-            if args.memory_bank:
-                new_memory_bank_state, (sa_bank, g_bank) = memory_bank.sample(training_state.memory_bank_state) #currently just sampling another batch_size, can modify in memory_bank.py later
-                sa_repr = jnp.concatenate([sa_repr, sa_bank], axis=0)
-                g_repr = jnp.concatenate([g_repr, g_bank], axis=0)
-                new_memory_bank_state = memory_bank.insert(new_memory_bank_state, sa_repr[:args.batch_size], g_repr[:args.batch_size])
-            else:
-                new_memory_bank_state = training_state.memory_bank_state
-                
-            if args.batchdiv2 == 1:
-                sa_repr = jnp.concatenate([sa_repr[:args.batch_size//2], jax.lax.stop_gradient(sa_repr[args.batch_size//2:])])
-                g_repr = jnp.concatenate([g_repr[:args.batch_size//2], jax.lax.stop_gradient(g_repr[args.batch_size//2:])])
-            elif args.batchdiv2 == 2:
-                sa_repr = sa_repr[:args.batch_size//2]
-                g_repr = jnp.concatenate([g_repr[:args.batch_size//2], jax.lax.stop_gradient(g_repr[args.batch_size//2:])])
-                
-            if args.mrn:
-                sym1 = sym.apply(critic_params['sym'], sa_repr)                    # (B, 64)
-                sym2 = sym.apply(critic_params['sym'], g_repr)                     # (B, 64)
-                dist_s = jnp.sum((sym1[:, None, :] - sym2[None, :, :]) ** 2, axis=-1) + 1e-6 # (B, B)
 
-                # Asymmetric path
-                asym1 = asym.apply(critic_params['asym'], sa_repr)                # (B, 64)
-                asym2 = asym.apply(critic_params['asym'], g_repr)                 # (B, 64)
-                res = jax.nn.relu(asym1[:, None, :] - asym2[None, :, :])         # (B, B, 64)
-                dist_a = jnp.max(res, axis=-1) + 1e-6                              # (B, B)
+            if args.mrn == "func":
+                # MRN distance loss
+                logits = -utils.mrn_distance(sa_repr[:, None, :], g_repr[None, :])
+                critic_loss_value = -jnp.mean(jnp.diag(logits) - jax.nn.logsumexp(logits, axis=1))
+                # Returning dummy aux values
+                return critic_loss_value, (None, None, None, None, None)
 
-                # Combining distances
-                logits = -(dist_s + dist_a)                                       # (B, B)
-                critic_loss = -jnp.mean(jnp.diag(logits) - jax.nn.logsumexp(logits, axis=1))  # scalar
-                
-                # logsumexp regularisation
-                logsumexp = jax.nn.logsumexp(logits + 1e-6, axis=1)
-                critic_loss += args.logsumexp_penalty_coeff * jnp.mean(logsumexp**2)
+            elif args.mrn == "arch": #THIS HAS SHAPE ERROR
+                # Pass through the Sym network
+                sym1 = sym.apply(critic_params['sym'], sa_repr)
+                sym2 = sym.apply(critic_params['sym'], g_repr)
+                dist_s = jnp.mean((sym1 - sym2) ** 2, axis=-1, keepdims=True)  # Symmetric distance
+
+                # Pass through the Asym network
+                asym1 = asym.apply(critic_params['asym'], sa_repr)
+                asym2 = asym.apply(critic_params['asym'], g_repr)
+                res = jax.nn.relu(asym1 - asym2)
+                dist_a = jnp.max(res, axis=-1, keepdims=True)  # Asymmetric distance
+
+                # Total distance (combine symmetric and asymmetric distances)
+                logits = -(dist_s + dist_a)
+                critic_loss_value = -jnp.mean(jnp.diag(logits) - jax.nn.logsumexp(logits, axis=1))
 
             else:
                 # InfoNCE
-                logits = -jnp.sqrt(jnp.sum((sa_repr[:, None, :] - g_repr[None, :, :]) ** 2, axis=-1))       # shape = BxB
-                critic_loss = -jnp.mean(jnp.diag(logits) - jax.nn.logsumexp(logits, axis=1))
+                logits = -jnp.sqrt(jnp.sum((sa_repr[:, None, :] - g_repr[None, :, :]) ** 2, axis=-1))  # shape = BxB
+                critic_loss_value = -jnp.mean(jnp.diag(logits) - jax.nn.logsumexp(logits, axis=1))
 
-                # logsumexp regularisation
-                logsumexp = jax.nn.logsumexp(logits + 1e-6, axis=1)
-                critic_loss += args.logsumexp_penalty_coeff * jnp.mean(logsumexp**2)
+            # logsumexp regularization
+            logsumexp = jax.nn.logsumexp(logits + 1e-6, axis=1)
+            critic_loss_value += args.logsumexp_penalty_coeff * jnp.mean(logsumexp**2)
 
-            if 0:
-                I = jnp.eye(logits.shape[0])
-                correct = jnp.argmax(logits, axis=1) == jnp.argmax(I, axis=1)
-                logits_pos = jnp.sum(logits * I) / jnp.sum(I)
-                logits_neg = jnp.sum(logits * (1 - I)) / jnp.sum(1 - I)
-            else:
-                I, correct, logits_pos, logits_neg = jnp.zeros(1), jnp.zeros(1), jnp.zeros(1), jnp.zeros(1)
-                
+            I = jnp.eye(logits.shape[0])
+            correct = jnp.argmax(logits, axis=1) == jnp.argmax(I, axis=1)
+            logits_pos = jnp.sum(logits * I) / jnp.sum(I)
+            logits_neg = jnp.sum(logits * (1 - I)) / jnp.sum(1 - I)
 
-            return critic_loss, (logsumexp, I, correct, logits_pos, logits_neg, new_memory_bank_state)
+            return critic_loss_value, (logsumexp, I, correct, logits_pos, logits_neg)
             
-        (loss, (logsumexp, I, correct, logits_pos, logits_neg, new_memory_bank_state)), grad = jax.value_and_grad(critic_loss, has_aux=True)(training_state.critic_state.params, transitions, key)
+        (loss, (logsumexp, I, correct, logits_pos, logits_neg)), grad = jax.value_and_grad(critic_loss, has_aux=True)(training_state.critic_state.params, transitions, key)
         new_critic_state = training_state.critic_state.apply_gradients(grads=grad)
-        training_state = training_state.replace(critic_state = new_critic_state, memory_bank_state=new_memory_bank_state)
+        training_state = training_state.replace(critic_state = new_critic_state)
 
         metrics = {
             "categorical_accuracy": jnp.mean(correct),
@@ -723,12 +653,9 @@ if __name__ == "__main__":
         return (training_state, key,), metrics
 
     @jax.jit
-    def training_step(training_state, env_state, buffer_state, key, t):
-        experience_key1, experience_key2, sampling_key, training_key, sgd_batches_key = jax.random.split(key, 5)
+    def training_step(training_state, env_state, buffer_state, key):
+        experience_key1, experience_key2, sampling_key, training_key = jax.random.split(key, 4)
 
-        # print(f"Current training step: {t}")
-        # if t % args.training_steps_multiplier == 0:
-        
         # update buffer
         env_state, buffer_state = get_experience(
             training_state.actor_state,
@@ -740,95 +667,104 @@ if __name__ == "__main__":
         training_state = training_state.replace(
             env_steps=training_state.env_steps + args.env_steps_per_actor_step,
         )
-            
-        # def collect_data():
-        #     new_env_state, new_buffer_state = get_experience(
-        #         training_state.actor_state,
-        #         env_state,
-        #         buffer_state,
-        #         experience_key1,
-        #     )
-        #     new_training_state = training_state.replace(
-        #         env_steps=training_state.env_steps + args.env_steps_per_actor_step
-        #     )
-        #     return new_training_state, new_env_state, new_buffer_state
 
-        # def skip_data_collection():
-        #     return training_state, env_state, buffer_state
-
-        # training_state, env_state, buffer_state = jax.lax.cond(
-        #     t % args.training_steps_multiplier == 0,
-        #     collect_data,
-        #     skip_data_collection
-        # )
-
-        # # sample actor-step worth of transitions
-        # buffer_state, transitions = replay_buffer.sample(buffer_state)
-        # print(f"transitions.observation.shape: {transitions.observation.shape}", flush=True)
-        
-        # Sample actor-step worth of transitions N times and concatenate them (NOTE: just a bandaid fix right now, currently can sample repeat data)
-        
-        transitions_list = []
-        for _ in range(args.num_episodes_per_env):
-            buffer_state, new_transitions = replay_buffer.sample(buffer_state)
-            transitions_list.append(new_transitions)
-
-        # Concatenate all sampled transitions
-        transitions = jax.tree_util.tree_map(
-            lambda *arrays: jnp.concatenate(arrays, axis=0),
-            *transitions_list
-        )
-
-        print(f"transitions.observation.shape (after {args.num_episodes_per_env} episodes per env): {transitions.observation.shape}", flush=True)   
+        # sample actor-step worth of transitions
+        buffer_state, transitions = replay_buffer.sample(buffer_state)
 
         # process transitions for training
         batch_keys = jax.random.split(sampling_key, transitions.observation.shape[0])
         transitions = jax.vmap(TrajectoryUniformSamplingQueue.flatten_crl_fn, in_axes=(None, 0, 0))(
             (args.gamma, args.obs_dim, args.goal_start_idx, args.goal_end_idx), transitions, batch_keys
         )
-        print(f"transitions.observation.shape (after flatten_crl_fn): {transitions.observation.shape}", flush=True)
 
-        
         transitions = jax.tree_util.tree_map(
             lambda x: jnp.reshape(x, (-1,) + x.shape[2:], order="F"),
             transitions,
         )
-        print(f"transitions.observation.shape (after first reshape): {transitions.observation.shape}", flush=True)
-        
-              
         permutation = jax.random.permutation(experience_key2, len(transitions.observation))
         transitions = jax.tree_util.tree_map(lambda x: x[permutation], transitions)
-        
-        # I added this code, so as to ensure len(transitions.observation) is divisible by batch_size
-        num_full_batches = len(transitions.observation) // args.batch_size
-        transitions = jax.tree_util.tree_map(lambda x: x[:num_full_batches * args.batch_size], transitions)
-        print(f"transitions.observation.shape (after ensuring divisibility by batch_size): {transitions.observation.shape}", flush=True)
-        
+
+        # Padding to ensure the total size is divisible by batch size
+        total_samples = transitions.observation.shape[0]
+        remainder = total_samples % args.batch_size
+
+        if remainder != 0:
+            padding_size = args.batch_size - remainder
+            transitions = jax.tree_util.tree_map(
+                lambda x: jnp.pad(x, ((0, padding_size),) + ((0, 0),) * (x.ndim - 1)),
+                transitions
+            )
+
+        # Reshape after padding
         transitions = jax.tree_util.tree_map(
             lambda x: jnp.reshape(x, (-1, args.batch_size) + x.shape[1:]),
             transitions,
         )
 
-        print(f"transitions.observation.shape (after processing): {transitions.observation.shape}", flush=True)
-        
-        if args.use_all_batches == 0:
-            num_total_batches = transitions.observation.shape[0]
-            selected_indices = jax.random.permutation(
-                sgd_batches_key, 
-                num_total_batches
-            )[:args.num_sgd_batches_per_training_step]
-            transitions = jax.tree_util.tree_map(
-                lambda x: x[selected_indices], 
-                transitions
-            )
-        print(f"transitions.observation.shape (after {args.use_all_batches}, selecting {args.num_sgd_batches_per_training_step} batches): {transitions.observation.shape}", flush=True)
-        
-        
         # take actor-step worth of training-step
         (training_state, _,), metrics = jax.lax.scan(sgd_step, (training_state, training_key), transitions)
 
         return (training_state, env_state, buffer_state,), metrics
 
+  
+    @jax.jit
+    def training_step(training_state, env_state, buffer_state, key):
+        experience_key1, experience_key2, sampling_key, training_key = jax.random.split(key, 4)
+
+        # update buffer
+        env_state, buffer_state = get_experience(
+            training_state.actor_state,
+            env_state,
+            buffer_state,
+            experience_key1,
+        )
+
+        training_state = training_state.replace(
+            env_steps=training_state.env_steps + args.env_steps_per_actor_step,
+        )
+
+        # sample actor-step worth of transitions
+        buffer_state, transitions = replay_buffer.sample(buffer_state)
+
+        # process transitions for training
+        batch_keys = jax.random.split(sampling_key, transitions.observation.shape[0])
+        transitions = jax.vmap(TrajectoryUniformSamplingQueue.flatten_crl_fn, in_axes=(None, 0, 0))(
+            (args.gamma, args.obs_dim, args.goal_start_idx, args.goal_end_idx), 
+            transitions, 
+            batch_keys
+        )  
+        
+        # Flatten the transitions
+        transitions = jax.tree_util.tree_map(
+            lambda x: jnp.reshape(x, (-1,) + x.shape[2:], order="F"),
+            transitions,
+        )
+
+        # Permute the transitions
+        permutation = jax.random.permutation(experience_key2, len(transitions.observation))
+        transitions = jax.tree_util.tree_map(lambda x: x[permutation], transitions)
+
+        # Truncate to nearest multiple of batch_size
+        num_samples = len(transitions.observation)
+        num_complete_batches = num_samples // args.batch_size
+        truncated_size = num_complete_batches * args.batch_size
+
+        transitions = jax.tree_util.tree_map(
+            lambda x: x[:truncated_size], 
+            transitions
+        )
+
+        # Reshape into batches
+        transitions = jax.tree_util.tree_map(
+            lambda x: jnp.reshape(x, (-1, args.batch_size) + x.shape[1:]),
+            transitions,
+        )
+
+        # take actor-step worth of training-step
+        (training_state, _,), metrics = jax.lax.scan(sgd_step, (training_state, training_key), transitions)
+
+        return (training_state, env_state, buffer_state,), metrics
+   
     @jax.jit
     def training_epoch(
         training_state,
@@ -837,15 +773,13 @@ if __name__ == "__main__":
         key,
     ):  
         @jax.jit
-        def f(carry, t):
+        def f(carry, unused_t):
             ts, es, bs, k = carry
             k, train_key = jax.random.split(k, 2)
-            (ts, es, bs,), metrics = training_step(ts, es, bs, train_key, t)
+            (ts, es, bs,), metrics = training_step(ts, es, bs, train_key)
             return (ts, es, bs, k), metrics
 
-        #(training_state, env_state, buffer_state, key), metrics = jax.lax.scan(f, (training_state, env_state, buffer_state, key), (), length=args.num_training_steps_per_epoch * args.training_steps_multiplier)
-        (training_state, env_state, buffer_state, key), metrics = jax.lax.scan(f, (training_state, env_state, buffer_state, key), jnp.arange(args.num_training_steps_per_epoch * args.training_steps_multiplier))
-
+        (training_state, env_state, buffer_state, key), metrics = jax.lax.scan(f, (training_state, env_state, buffer_state, key), (), length=args.num_training_steps_per_epoch)
         
         metrics["buffer_current_size"] = replay_buffer.size(buffer_state)
         return training_state, env_state, buffer_state, metrics
@@ -866,8 +800,7 @@ if __name__ == "__main__":
     )
 
     training_walltime = 0
-    print('starting training....', flush=True)
-    start_time = time.time()  # Add this line before the training loop
+    print('starting training....')
     for ne in range(args.num_epochs):
         
         t = time.time()
@@ -891,7 +824,7 @@ if __name__ == "__main__":
 
         metrics = evaluator.run_evaluation(training_state, metrics)
 
-        print(f"epoch {ne} out of {args.num_epochs} complete. metrics: {metrics}", flush=True)
+        print(metrics)
 
         if args.checkpoint:
             # Save current policy and critic params.
@@ -901,13 +834,43 @@ if __name__ == "__main__":
         
         if args.track:
             wandb.log(metrics, step=ne)
+            # Define the render function
+            def render(exp_dir, exp_name):
+                # Initialize rng correctly and reset for each usage in the loop
+                rng = jax.random.PRNGKey(seed=1)
+                inference_fn = lambda x: actor.apply(training_state.actor_state.params, x)
+                jit_env_reset = jax.jit(env.reset)
+                jit_env_step = jax.jit(env.step)
+                jit_inference_fn = jax.jit(inference_fn)
+
+                rollout = []
+                state = jit_env_reset(rng=rng)
+                for i in range(5000):
+                    rollout.append(state.pipeline_state)
+                    
+                    # Split rng to get a new key each time
+                    rng, act_rng = jax.random.split(rng)
+                    act, _ = jit_inference_fn(state.obs, act_rng)
+                    state = jit_env_step(state, act)
+                    
+                    if i % 1000 == 0:
+                        rng, reset_rng = jax.random.split(rng)
+                        state = jit_env_reset(rng=reset_rng)
+
+                # Render HTML and log to WandB
+                url = html.render(env.sys.replace(dt=env.dt), rollout, height=1024)
+                html_path = os.path.join(exp_dir, f"{exp_name}.html")
+                with open(html_path, "w") as file:
+                    file.write(url)
+
+                # Log to WandB
+                wandb.log({"render": wandb.Html(html_path)})
+
+            # Call render before syncing
+            # render("/home/ij9461/Documents/IW/T/JaxGCRL/clean_JaxGCRL/renders", args.exp_name)
 
             if args.wandb_mode == 'offline':
                 trigger_sync()
-        
-        hours_passed = (time.time() - start_time) / 3600
-        print(f"Time elapsed: {hours_passed:.3f} hours", flush=True)
-
     
     if args.checkpoint:
         # Save current policy and critic params.

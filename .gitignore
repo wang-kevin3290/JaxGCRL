@@ -315,3 +315,11 @@ __pycache__
 wandb/
 params/
 runs/
+
+
+# Slurm
+**/slurm-*.out
+
+# Other stuff
+**/scripts/*.sh
+

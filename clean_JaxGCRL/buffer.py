@@ -39,6 +39,7 @@ class TrajectoryUniformSamplingQueue():
         dummy_flatten, self._unflatten_fn = flatten_util.ravel_pytree(dummy_data_sample)
         self._unflatten_fn = jax.vmap(jax.vmap(self._unflatten_fn))
         data_size = len(dummy_flatten)
+        print(f"data_size: {data_size}", flush=True)
 
         self._data_shape = (max_replay_size, num_envs, data_size)
         self._data_dtype = dummy_flatten.dtype
@@ -106,7 +107,7 @@ class TrajectoryUniformSamplingQueue():
 
         # Update the buffer and the control numbers.
         data = jax.lax.dynamic_update_slice_in_dim(data, update, position, axis=0)
-        position = (position + len(update)) % (len(data) + 1)    # so whenever roll happens, position becomes len(data), else it is increased by len(update), what is the use of doing % (len(data) + 1)?? 
+        position = (position + len(update)) % (len(data) + 1)    # so whenever roll happens, position becomes len(data), else it is increased by len(update), what is the use of doing % (len(data) + 1)??
         sample_position = jnp.maximum(0, buffer_state.sample_position + roll) #what is the use of this line? sample_position always remains 0 as roll can never be positive
 
         return buffer_state.replace(
@@ -164,6 +165,7 @@ class TrajectoryUniformSamplingQueue():
 
         flatten_crl_fn takes care of this
         '''
+        print(f"buffer_state.data[:, envs_idxs, :].shape: {buffer_state.data[:, envs_idxs, :].shape}", flush=True)
         batch = create_batch_vmaped(buffer_state.data[:, envs_idxs, :], matrix)
         transitions = self._unflatten_fn(batch)
         return buffer_state.replace(key=key), transitions
@@ -207,7 +209,10 @@ class TrajectoryUniformSamplingQueue():
         goal = future_state[:, goal_start_idx : goal_end_idx]
         future_state = future_state[:, : obs_dim]
         state = transition.observation[:-1, : obs_dim] #all states are considered
-        new_obs = jnp.concatenate([state, goal], axis=1)
+        new_obs = jnp.concatenate([state, goal], axis=1) 
+        # BASICALLY HERE, for each state in the 1000 time-steps, we are creating a new observation by 
+        # appending the goal to the state (where the goal is extracted from the future state, which
+        # is sampled with geometric of gamma of the same trajectory)
 
         extras = {
             "policy_extras": {},
