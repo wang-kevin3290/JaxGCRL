@@ -20,6 +20,7 @@ from typing import NamedTuple, Any
 from wandb_osh.hooks import TriggerWandbSyncHook
 from flax.training.train_state import TrainState
 from flax.linen.initializers import variance_scaling
+from brax.io import html
 
 from evaluator import CrlEvaluator
 from buffer import TrajectoryUniformSamplingQueue
@@ -37,8 +38,8 @@ class Args:
     wandb_mode: str = 'offline'
     wandb_dir: str = '.'
     wandb_group: str = '.'
-    capture_video: bool = True
-    checkpoint: bool = False
+    capture_vis: bool = True
+    checkpoint: bool = True
 
     #environment specific arguments
     env_id: str = "humanoid" # "ant_push" "ant_hardest_maze" "ant_big_maze" "humanoid" "ant"
@@ -74,7 +75,10 @@ class Args:
     network_width: int = 256
     critic_network_width: int = 256
     actor_network_width: int = 256
-    
+    actor_depth: int = 4
+    critic_depth: int = 4
+    actor_skip_connections: int = 0 # 0 for no skip connections, >= 0 means the frequency of skip connections (every X layers)
+    critic_skip_connections: int = 0 # 0 for no skip connections, >= 0 means the frequency of skip connections (every X layers)
     
     num_episodes_per_env: int = 1 #the number of episodes to sample from each env when sampling data 
     #(to ensure number of batches is consistent as increase batch_size; for now, just a bandaid fix)
@@ -96,6 +100,18 @@ class Args:
     # can add 3, 4, etc (if diff between 1 and 2, maybe for batch_size ablation we need to have separate for actor and critic)
     # add more for instead of discarding second half, just freeze gradients for second half so symmetric with first
     
+    eval_actor: int = 0
+    # if 0, use deterministic actor for evaluation
+    # if 1, use stochastic actor for evaluation
+    # if 2, sample two actions and take the one with the higher Q value
+    # if K >= 2, sample K actions and take the one with the highest Q value
+    expl_actor: int = 1
+    # if 0, use deterministic actor for exploration/collecting data
+    # if 1, use stochastic actor for exploration/collecting data
+    # if 2, sample two actions and take the one with the higher Q value
+    # if K >= 2, sample K actions and take the one with the highest Q value
+    
+    
     
     # to be filled in runtime
     env_steps_per_actor_step : int = 0
@@ -110,6 +126,8 @@ class Args:
 class SA_encoder(nn.Module):
     norm_type = "layer_norm"
     network_width: int = 1024
+    network_depth: int = 4
+    skip_connections: int = 0
     @nn.compact
     def __call__(self, s: jnp.ndarray, a: jnp.ndarray):
 
@@ -122,24 +140,26 @@ class SA_encoder(nn.Module):
             normalize = lambda x: x
 
         x = jnp.concatenate([s, a], axis=-1)
-        x = nn.Dense(self.network_width, kernel_init=lecun_unfirom, bias_init=bias_init)(x)
-        x = normalize(x)
-        x = nn.swish(x)
-        x = nn.Dense(self.network_width, kernel_init=lecun_unfirom, bias_init=bias_init)(x)
-        x = normalize(x)
-        x = nn.swish(x)
-        x = nn.Dense(self.network_width, kernel_init=lecun_unfirom, bias_init=bias_init)(x)
-        x = normalize(x)
-        x = nn.swish(x)
-        x = nn.Dense(self.network_width, kernel_init=lecun_unfirom, bias_init=bias_init)(x)
-        x = normalize(x)
-        x = nn.swish(x)
+        for i in range(self.network_depth):
+            x = nn.Dense(self.network_width, kernel_init=lecun_unfirom, bias_init=bias_init)(x)
+            x = normalize(x)
+            x = nn.swish(x)
+            
+            if self.skip_connections:
+                if i == 0:
+                    skip = x
+                if i > 0 and i % self.skip_connections == 0:
+                    x = x + skip
+                    skip = x
+        
         x = nn.Dense(64, kernel_init=lecun_unfirom, bias_init=bias_init)(x)
         return x
     
 class G_encoder(nn.Module):
     norm_type = "layer_norm"
     network_width: int = 1024
+    network_depth: int = 4
+    skip_connections: int = 0
     @nn.compact
     def __call__(self, g: jnp.ndarray):
 
@@ -150,19 +170,20 @@ class G_encoder(nn.Module):
             normalize = lambda x: nn.LayerNorm()(x)
         else:
             normalize = lambda x: x
-
-        x = nn.Dense(self.network_width, kernel_init=lecun_unfirom, bias_init=bias_init)(g)
-        x = normalize(x)
-        x = nn.swish(x)
-        x = nn.Dense(self.network_width, kernel_init=lecun_unfirom, bias_init=bias_init)(x)
-        x = normalize(x)
-        x = nn.swish(x)
-        x = nn.Dense(self.network_width, kernel_init=lecun_unfirom, bias_init=bias_init)(x)
-        x = normalize(x)
-        x = nn.swish(x)
-        x = nn.Dense(self.network_width, kernel_init=lecun_unfirom, bias_init=bias_init)(x)
-        x = normalize(x)
-        x = nn.swish(x)
+        
+        x = g
+        for i in range(self.network_depth):
+            x = nn.Dense(self.network_width, kernel_init=lecun_unfirom, bias_init=bias_init)(x)
+            x = normalize(x)
+            x = nn.swish(x)
+            
+            if self.skip_connections:
+                if i == 0:
+                    skip = x
+                if i > 0 and i % self.skip_connections == 0:
+                    x = x + skip
+                    skip = x
+        
         x = nn.Dense(64, kernel_init=lecun_unfirom, bias_init=bias_init)(x)
         return x
 
@@ -194,6 +215,8 @@ class Actor(nn.Module):
     action_size: int
     norm_type = "layer_norm"
     network_width: int = 1024
+    network_depth: int = 4
+    skip_connections: int = 0 # 0 for no skip connections, >= 0 means the frequency of skip connections (every X layers)
     LOG_STD_MAX = 2
     LOG_STD_MIN = -5
 
@@ -209,18 +232,17 @@ class Actor(nn.Module):
         
         print(f"x.shape: {x.shape}", flush=True)
 
-        x = nn.Dense(self.network_width, kernel_init=lecun_unfirom, bias_init=bias_init)(x)
-        x = normalize(x)
-        x = nn.swish(x)
-        x = nn.Dense(self.network_width, kernel_init=lecun_unfirom, bias_init=bias_init)(x)
-        x = normalize(x)
-        x = nn.swish(x)
-        x = nn.Dense(self.network_width, kernel_init=lecun_unfirom, bias_init=bias_init)(x)
-        x = normalize(x)
-        x = nn.swish(x)
-        x = nn.Dense(self.network_width, kernel_init=lecun_unfirom, bias_init=bias_init)(x)
-        x = normalize(x)
-        x = nn.swish(x)
+        for i in range(self.network_depth):
+            x = nn.Dense(self.network_width, kernel_init=lecun_unfirom, bias_init=bias_init)(x)
+            x = normalize(x)
+            x = nn.swish(x)
+            
+            if self.skip_connections:
+                if i == 0:
+                    skip = x
+                if i > 0 and i % self.skip_connections == 0:
+                    x = x + skip
+                    skip = x
 
         mean = nn.Dense(self.action_size, kernel_init=lecun_unfirom, bias_init=bias_init)(x)
         log_std = nn.Dense(self.action_size, kernel_init=lecun_unfirom, bias_init=bias_init)(x)
@@ -285,7 +307,7 @@ if __name__ == "__main__":
         args.critic_network_width = args.network_width
         args.actor_network_width = args.network_width
     
-    run_name = f"{args.env_id}_{args.batch_size}_critbx:{args.critic_batch_size_multiplier}_actbx:{args.actor_batch_size_multiplier}_batchdiv2:{args.batchdiv2}_{args.total_env_steps}_nenvs:{args.num_envs}_criticwidth:{args.critic_network_width}_actorwidth:{args.actor_network_width}_epspenv:{args.num_episodes_per_env}_trainmult:{args.training_steps_multiplier}_mrn:{args.mrn}_memorybank:{args.memory_bank}_sgdbatchesptrainstep:{args.num_sgd_batches_per_training_step}_useallbatches:{args.use_all_batches}_{args.seed}"
+    run_name = f"{args.env_id}_{args.batch_size}_critbx:{args.critic_batch_size_multiplier}_actbx:{args.actor_batch_size_multiplier}_batchdiv2:{args.batchdiv2}_{args.total_env_steps}_nenvs:{args.num_envs}_criticwidth:{args.critic_network_width}_actorwidth:{args.actor_network_width}_criticdepth:{args.critic_depth}_actordepth:{args.actor_depth}_actorskip:{args.actor_skip_connections}_criticskip:{args.critic_skip_connections}_epspenv:{args.num_episodes_per_env}_trainmult:{args.training_steps_multiplier}_mrn:{args.mrn}_memorybank:{args.memory_bank}_sgdbatchesptrainstep:{args.num_sgd_batches_per_training_step}_useallbatches:{args.use_all_batches}_evalactor:{args.eval_actor}_explactor:{args.expl_actor}_{args.seed}"
     print(f"run_name: {run_name}", flush=True)
     
     if args.track:
@@ -311,7 +333,9 @@ if __name__ == "__main__":
         
     if args.checkpoint:
         from pathlib import Path
-        save_path = Path(args.wandb_dir) / Path(run_name)
+        from datetime import datetime
+        short_run_name = f"runs/{args.env_id}_{args.seed}_{datetime.now().strftime('%Y%m%d-%H%M%S')}"
+        save_path = Path(args.wandb_dir) / Path(short_run_name)
         os.mkdir(path=save_path)
 
     random.seed(args.seed)
@@ -319,71 +343,145 @@ if __name__ == "__main__":
     key = jax.random.PRNGKey(args.seed)
     key, buffer_key, env_key, eval_env_key, actor_key, sa_key, g_key, sym_key, asym_key, memory_bank_key = jax.random.split(key, 10)
 
-    # Environment setup    
-    if args.env_id == "ant":
-        from envs.ant import Ant
-        env = Ant(
-            backend="spring",
-            exclude_current_positions_from_observation=False,
-            terminate_when_unhealthy=True,
-        )
 
-        args.obs_dim = 29
-        args.goal_start_idx = 0
-        args.goal_end_idx = 2
+    def make_env():
+        print(f"making env with args.env_id: {args.env_id}", flush=True)
+        if args.env_id == "reacher":
+            from envs.reacher import Reacher
+            env = Reacher(
+                backend="spring",
+            )
+            args.obs_dim = 10
+            args.goal_start_idx = 4
+            args.goal_end_idx = 7
+        # Environment setup    
+        elif args.env_id == "ant":
+            from envs.ant import Ant
+            env = Ant(
+                backend="spring",
+                exclude_current_positions_from_observation=False,
+                terminate_when_unhealthy=True,
+            )
 
-    elif "maze" in args.env_id:
-        from envs.ant_maze import AntMaze
-        env = AntMaze(
-            backend="spring",
-            exclude_current_positions_from_observation=False,
-            terminate_when_unhealthy=True,
-            maze_layout_name=args.env_id[4:]
-        )
+            args.obs_dim = 29
+            args.goal_start_idx = 0
+            args.goal_end_idx = 2
 
-        args.obs_dim = 29
-        args.goal_start_idx = 0
-        args.goal_end_idx = 2
-    
-    elif args.env_id == "ant_ball":
-        from envs.ant_ball import AntBall
-        env = AntBall(
-            backend="spring",
-            exclude_current_positions_from_observation=False,
-            terminate_when_unhealthy=True,
-        )
+        elif "maze" in args.env_id:
+            from envs.ant_maze import AntMaze
+            env = AntMaze(
+                backend="spring",
+                exclude_current_positions_from_observation=False,
+                terminate_when_unhealthy=True,
+                maze_layout_name=args.env_id[4:]
+            )
 
-        args.obs_dim = 31
-        args.goal_start_idx = -4
-        args.goal_end_idx = -2
+            args.obs_dim = 29
+            args.goal_start_idx = 0
+            args.goal_end_idx = 2
+        
+        elif args.env_id == "ant_ball":
+            from envs.ant_ball import AntBall
+            env = AntBall(
+                backend="spring",
+                exclude_current_positions_from_observation=False,
+                terminate_when_unhealthy=True,
+            )
 
-    elif args.env_id == "ant_push":
-        from envs.ant_push import AntPush
-        env = AntPush(
-            backend="spring",
-            exclude_current_positions_from_observation=False,
-            terminate_when_unhealthy=True,
-        )
+            args.obs_dim = 31
+            args.goal_start_idx = 28
+            args.goal_end_idx = 30
 
-        args.obs_dim = 31
-        args.goal_start_idx = 0
-        args.goal_end_idx = 2
-    
-    elif args.env_id == "humanoid":
-        from envs.humanoid import Humanoid
-        env = Humanoid(
-            backend="spring",
-            exclude_current_positions_from_observation=False,
-            terminate_when_unhealthy=True,
-        )
+        elif args.env_id == "ant_push":
+            from envs.ant_push import AntPush
+            env = AntPush(
+                backend="spring",
+                exclude_current_positions_from_observation=False,
+                terminate_when_unhealthy=True,
+            )
 
-        args.obs_dim = 268
-        args.goal_start_idx = 0
-        args.goal_end_idx = 3
+            args.obs_dim = 31
+            args.goal_start_idx = 0
+            args.goal_end_idx = 2
+        
+        elif args.env_id == "humanoid":
+            from envs.humanoid import Humanoid
+            env = Humanoid(
+                backend="spring",
+                exclude_current_positions_from_observation=False,
+                terminate_when_unhealthy=True,
+            )
 
-    else:
-        raise NotImplementedError
+            args.obs_dim = 268
+            args.goal_start_idx = 0
+            args.goal_end_idx = 3
+            
+        elif args.env_id == "arm_reach":
+            from envs.manipulation.arm_reach import ArmReach
+            env = ArmReach(
+                backend="mjx",
+            )
 
+            args.obs_dim = 13
+            args.goal_start_idx = 7
+            args.goal_end_idx = 10
+            
+        elif args.env_id == "arm_binpick_easy":
+            from envs.manipulation.arm_binpick_easy import ArmBinpickEasy
+            env = ArmBinpickEasy(
+                backend="mjx",
+            )
+
+            args.obs_dim = 17
+            args.goal_start_idx = 0
+            args.goal_end_idx = 3
+            
+        elif args.env_id == "arm_binpick_hard":
+            from envs.manipulation.arm_binpick_hard import ArmBinpickHard
+            env = ArmBinpickHard(
+                backend="mjx",
+            )
+
+            args.obs_dim = 17
+            args.goal_start_idx = 0
+            args.goal_end_idx = 3
+        
+        elif args.env_id == "arm_grasp":
+            from envs.manipulation.arm_grasp import ArmGrasp
+            env = ArmGrasp(
+                backend="mjx",
+            )
+
+            args.obs_dim = 23
+            args.goal_start_idx = 16
+            args.goal_end_idx = 23
+        
+        elif args.env_id == "arm_push_easy":
+            from envs.manipulation.arm_push_easy import ArmPushEasy
+            env = ArmPushEasy(
+                backend="mjx",
+            )
+
+            args.obs_dim = 17
+            args.goal_start_idx = 0
+            args.goal_end_idx = 3
+        
+        elif args.env_id == "arm_push_hard":
+            from envs.manipulation.arm_push_hard import ArmPushHard
+            env = ArmPushHard(
+                backend="mjx",
+            )
+
+            args.obs_dim = 17
+            args.goal_start_idx = 0
+            args.goal_end_idx = 3
+
+        else:
+            raise NotImplementedError
+        
+        return env
+        
+    env = make_env()
     env = envs.training.wrap(
         env,
         episode_length=args.episode_length,
@@ -399,7 +497,7 @@ if __name__ == "__main__":
 
     # Network setup
     # Actor
-    actor = Actor(action_size=action_size, network_width=args.actor_network_width)
+    actor = Actor(action_size=action_size, network_width=args.actor_network_width, network_depth=args.actor_depth, skip_connections=args.actor_skip_connections)
     actor_state = TrainState.create(
         apply_fn=actor.apply,
         params=actor.init(actor_key, np.ones([1, obs_size])),
@@ -407,9 +505,9 @@ if __name__ == "__main__":
     )
 
     # Critic
-    sa_encoder = SA_encoder(network_width=args.critic_network_width)
+    sa_encoder = SA_encoder(network_width=args.critic_network_width, network_depth=args.critic_depth, skip_connections=args.critic_skip_connections)
     sa_encoder_params = sa_encoder.init(sa_key, np.ones([1, args.obs_dim]), np.ones([1, action_size]))
-    g_encoder = G_encoder(network_width=args.critic_network_width)
+    g_encoder = G_encoder(network_width=args.critic_network_width, network_depth=args.critic_depth, skip_connections=args.critic_skip_connections)
     g_encoder_params = g_encoder.init(g_key, np.ones([1, args.goal_end_idx - args.goal_start_idx]))
     # c = jnp.asarray(0.0, dtype=jnp.float32) (NOT USED IN CODE, WHATS THIS)
     
@@ -517,8 +615,8 @@ if __name__ == "__main__":
             extras={"state_extras": state_extras},
         )
     
-    def actor_step(actor_state, env, env_state, key, extra_fields):
-        means, log_stds = actor.apply(actor_state.params, env_state.obs)
+    def actor_step(training_state, env, env_state, key, extra_fields):
+        means, log_stds = actor.apply(training_state.actor_state.params, env_state.obs)
         stds = jnp.exp(log_stds)
         actions = nn.tanh( means + stds * jax.random.normal(key, shape=means.shape, dtype=means.dtype) )
 
@@ -532,14 +630,76 @@ if __name__ == "__main__":
             discount=1-nstate.done,
             extras={"state_extras": state_extras},
         )
+        
+    def multi_sample_actor_step(training_state, env, env_state, key, K, extra_fields):
+        # Get K sets of actions from the actor
+        keys = jax.random.split(key, K)
+        means, log_stds = actor.apply(training_state.actor_state.params, env_state.obs)
+        stds = jnp.exp(log_stds)
+        
+        # Sample K actions
+        actions = jnp.stack([
+            nn.tanh(means + stds * jax.random.normal(k, shape=means.shape, dtype=means.dtype))
+            for k in keys
+        ])  # Shape: (K, batch_size, action_dim)
+        
+        # Compute Q values for each action
+        state = env_state.obs[:, :args.obs_dim]
+        goal = env_state.obs[:, args.obs_dim:]
+        
+        # Compute SA and G representations for each action
+        sa_reprs = jax.vmap(
+            lambda a: sa_encoder.apply(
+                training_state.critic_state.params["sa_encoder"], 
+                state, 
+                a
+            )
+        )(actions)  # Shape: (K, batch_size, repr_dim)
+        
+        g_repr = g_encoder.apply(
+            training_state.critic_state.params["g_encoder"], 
+            goal
+        )  # Shape: (batch_size, repr_dim)
+        
+        # Compute Q values as negative distances
+        q_values = -jnp.sqrt(
+            jnp.sum((sa_reprs - g_repr) ** 2, axis=-1)
+        )  # Shape: (K, batch_size)
+        
+        # Select actions with highest Q values
+        best_action_idx = jnp.argmax(q_values, axis=0)  # Shape: (batch_size,)
+        best_actions = jnp.take_along_axis(
+            actions,
+            best_action_idx[None, :, None],
+            axis=0
+        )[0]  # Shape: (batch_size, action_dim)
+        
+        # Step environment with best actions
+        nstate = env.step(env_state, best_actions)
+        state_extras = {x: nstate.info[x] for x in extra_fields}
+        
+        return nstate, Transition(
+            observation=env_state.obs,
+            action=best_actions,
+            reward=nstate.reward,
+            discount=1-nstate.done,
+            extras={"state_extras": state_extras},
+        )
+    
+    
 
     @jax.jit
-    def get_experience(actor_state, env_state, buffer_state, key):
+    def get_experience(training_state, env_state, buffer_state, key):
         @jax.jit
         def f(carry, unused_t): #conducts a single actor step in environment
             env_state, current_key = carry
             current_key, next_key = jax.random.split(current_key)
-            env_state, transition = actor_step(actor_state, env, env_state, current_key, extra_fields=("truncation", "seed"))
+            if args.expl_actor == 1:
+                env_state, transition = actor_step(training_state, env, env_state, current_key, extra_fields=("truncation", "seed"))
+            elif args.expl_actor == 0:
+                env_state, transition = deterministic_actor_step(training_state, env, env_state, extra_fields=("truncation", "seed"))
+            else:
+                env_state, transition = multi_sample_actor_step(training_state, env, env_state, current_key, args.expl_actor, extra_fields=("truncation", "seed"))
             return (env_state, next_key), transition
 
         (env_state, _), data = jax.lax.scan(f, (env_state, key), (), length=args.unroll_length)
@@ -554,7 +714,7 @@ if __name__ == "__main__":
             training_state, env_state, buffer_state, key = carry
             key, new_key = jax.random.split(key)
             env_state, buffer_state = get_experience(
-                training_state.actor_state,
+                training_state,
                 env_state,
                 buffer_state,
                 key,
@@ -731,7 +891,7 @@ if __name__ == "__main__":
         
         # update buffer
         env_state, buffer_state = get_experience(
-            training_state.actor_state,
+            training_state,
             env_state,
             buffer_state,
             experience_key1,
@@ -856,14 +1016,50 @@ if __name__ == "__main__":
         training_state, env_state, buffer_state, prefill_key
     )
 
-    '''Setting up evaluator'''
-    evaluator = CrlEvaluator(
-        deterministic_actor_step,
-        env,
-        num_eval_envs=args.num_eval_envs,
-        episode_length=args.episode_length,
-        key=eval_env_key,
-    )
+    if args.eval_actor == 0:
+        '''Setting up evaluator'''
+        evaluator = CrlEvaluator(
+            deterministic_actor_step,
+            env,
+            num_eval_envs=args.num_eval_envs,
+            episode_length=args.episode_length,
+            key=eval_env_key,
+        )
+        
+    elif args.eval_actor == 1:
+        key, eval_actor_key = jax.random.split(key)
+        evaluator = CrlEvaluator(
+            lambda training_state, env, env_state, extra_fields: actor_step(
+                training_state,
+                env,
+                env_state,
+                eval_actor_key,
+                extra_fields
+            ),
+            env,
+            num_eval_envs=args.num_eval_envs,
+            episode_length=args.episode_length,
+            key=eval_env_key,
+        )
+    
+    elif args.eval_actor > 1:
+        key, eval_actor_key = jax.random.split(key)
+        evaluator = CrlEvaluator(
+            # Replace deterministic_actor_step with a partial function of multi_sample_actor_step
+            lambda training_state, env, env_state, extra_fields: multi_sample_actor_step(
+                training_state, 
+                env, 
+                env_state, 
+                eval_actor_key,  # Use dedicated key for action sampling
+                args.eval_actor,  # Use eval_actor as K parameter
+                extra_fields
+            ),
+            env,
+            num_eval_envs=args.num_eval_envs,
+            episode_length=args.episode_length,
+            key=eval_env_key,
+        )
+    
 
     training_walltime = 0
     print('starting training....', flush=True)
@@ -914,6 +1110,42 @@ if __name__ == "__main__":
         params = (training_state.alpha_state.params, training_state.actor_state.params, training_state.critic_state.params)
         path = f"{save_path}/final.pkl"
         save_params(path, params)
+        
+    # After training is complete, render the final policy
+    if args.capture_vis:
+        def render_policy(training_state, save_path):
+            """Renders the policy and saves it as an HTML file."""
+            # JIT compile the rollout function
+            @jax.jit
+            def policy_step(env_state, actor_params):
+                means, _ = actor.apply(actor_params, env_state.obs)
+                actions = nn.tanh(means)
+                next_state = env.step(env_state, actions)
+                return next_state, env_state  # Return current state for visualization
+            
+            rollout_states = []
+            for i in range(5):
+                # env = Humanoid(backend=None or "spring")
+                env = make_env()
+                
+                # Initialize environment
+                rng = jax.random.PRNGKey(seed=i+1)
+                env_state = jax.jit(env.reset)(rng)
+                
+                # Collect rollout using jitted function
+                for _ in range(1000):
+                    env_state, current_state = policy_step(env_state, training_state.actor_state.params)
+                    rollout_states.append(current_state.pipeline_state)
+            
+            # Render and save
+            html_string = html.render(env.sys, rollout_states)
+            render_path = f"{save_path}/vis.html"
+            with open(render_path, "w") as f:
+                f.write(html_string)
+            wandb.log({"vis": wandb.Html(html_string)})
+            
+        print("Rendering final policy...", flush=True)
+        render_policy(training_state, save_path)
         
 # (50000000 - 1024 x 1000) / 50 x 1024 x 62 = 15        #number of actor steps per epoch (which is equal to the number of training steps)
 # 1024 x 999 / 256 = 4000                               #number of gradient steps per actor step 

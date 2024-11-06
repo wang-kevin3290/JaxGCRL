@@ -60,6 +60,7 @@ class CrlEvaluator():
           # (np.min, "_min"),
       ]
 
+      print("Available keys in episode_metrics:", eval_metrics.episode_metrics.keys())
       for (fn, suffix) in aggregating_fns:
           metrics.update(
               {
@@ -67,6 +68,7 @@ class CrlEvaluator():
                       fn(eval_metrics.episode_metrics[name]) if aggregate_episodes else eval_metrics.episode_metrics[name]
                   )
                   for name in ['reward', 'success', 'success_easy', 'dist', 'distance_from_origin']
+                  if name in eval_metrics.episode_metrics #THIS WAS ADDED BY ME (for arm tasks, may not be)
               }
           )
 
@@ -83,3 +85,5 @@ class CrlEvaluator():
       metrics = {"eval/walltime": self._eval_walltime, **training_metrics, **metrics}
 
       return metrics
+    
+    
