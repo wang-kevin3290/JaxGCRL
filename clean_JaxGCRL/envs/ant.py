@@ -9,9 +9,6 @@ import jax
 from jax import numpy as jp
 import mujoco
 
-# This is based on original Ant environment from Brax
-# https://github.com/google/brax/blob/main/brax/envs/ant.py
-
 class Ant(PipelineEnv):
     def __init__(
         self,
@@ -23,7 +20,7 @@ class Ant(PipelineEnv):
         healthy_z_range=(0.2, 1.0),
         contact_force_range=(-1.0, 1.0),
         reset_noise_scale=0.1,
-        exclude_current_positions_from_observation=False,
+        exclude_current_positions_from_observation=True,
         backend="generalized",
         **kwargs,
     ):
@@ -33,7 +30,7 @@ class Ant(PipelineEnv):
         n_frames = 5
 
         if backend in ["spring", "positional"]:
-            sys = sys.tree_replace({"opt.timestep": 0.005})
+            sys = sys.replace(dt=0.005)
             n_frames = 10
 
         if backend == "mjx":
@@ -69,9 +66,6 @@ class Ant(PipelineEnv):
         self._exclude_current_positions_from_observation = (
             exclude_current_positions_from_observation
         )
-        
-        self.state_dim = 29
-        self.goal_indices = jp.array([0, 1])
 
         if self._use_contact_forces:
             raise NotImplementedError("use_contact_forces not implemented.")
@@ -159,7 +153,6 @@ class Ant(PipelineEnv):
             distance_from_origin=math.safe_norm(pipeline_state.x.pos[0]),
             x_velocity=velocity[0],
             y_velocity=velocity[1],
-            forward_reward=forward_reward,
             dist=dist,
             success=success,
             success_easy=success_easy
