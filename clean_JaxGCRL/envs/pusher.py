@@ -18,7 +18,7 @@ class Pusher(PipelineEnv):
     n_frames = 5
 
     if backend in ['spring', 'positional']:
-      sys = sys.tree_replace({"opt.timestep": 0.001})
+      sys = sys.tree_replace(dt=0.001)
     
       sys = sys.replace(
           actuator=sys.actuator.replace(gear=jp.array([20.0] * sys.act_size()))
@@ -152,7 +152,7 @@ class PusherReacher(PipelineEnv):
     n_frames = 5
 
     if backend in ['spring', 'positional']:
-      sys = sys.tree_replace({"opt.timestep": 0.001})
+      sys = sys.replace(dt=0.001)
       sys = sys.replace(
           actuator=sys.actuator.replace(gear=jp.array([20.0] * sys.act_size()))
       )
