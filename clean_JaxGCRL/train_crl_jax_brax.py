@@ -455,9 +455,11 @@ if __name__ == "__main__":
             args.goal_start_idx = 0
             args.goal_end_idx = 3
         
-        elif env_id == "arm_grasp":
+        elif "arm_grasp" in env_id: # either arm_grasp or arm_grasp_0.5, etc
             from envs.manipulation.arm_grasp import ArmGrasp
+            cube_noise_scale = float(env_id[10:]) if len(env_id) > 9 else 0.3
             env = ArmGrasp(
+                cube_noise_scale=cube_noise_scale,
                 backend="mjx",
             )
 

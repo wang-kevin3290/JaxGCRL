@@ -323,3 +323,5 @@ runs/
 # Other stuff
 **/scripts/*.sh
 
+clean_JaxGCRL/job.slurm
+

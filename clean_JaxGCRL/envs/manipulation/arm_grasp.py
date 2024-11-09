@@ -14,6 +14,10 @@ Grasp: Close fingers on opposite sides of a cube.
 See _get_obs() and ArmEnvs._convert_action() for details.
 """
 class ArmGrasp(ArmEnvs):
+    def __init__(self, cube_noise_scale=0.3, **kwargs):
+        super().__init__(**kwargs)
+        self.cube_noise_scale = cube_noise_scale
+    
     def _get_xml_path(self):
         return "envs/assets/panda_grasp.xml"
     
@@ -31,7 +35,7 @@ class ArmGrasp(ArmEnvs):
         self.state_dim = 23
 
         self.arm_noise_scale = 0
-        self.cube_noise_scale = 0.3
+        # self.cube_noise_scale = 0.3
         
     def _get_initial_state(self, rng):
         rng, subkey1, subkey2 = jax.random.split(rng, 3)
