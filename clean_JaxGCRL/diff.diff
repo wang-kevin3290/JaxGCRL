@@ -1,0 +1,8 @@
+27c27
+<         exclude_current_positions_from_observation=True,
+---
+>         exclude_current_positions_from_observation=False,
+61a62,64
+>         
+>         self.state_dim = 31
+>         self.goal_indices = jp.array([0, 1])

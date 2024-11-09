@@ -39,6 +39,7 @@ class Args:
     wandb_dir: str = '.'
     wandb_group: str = '.'
     capture_vis: bool = True
+    vis_length: int = 1000
     checkpoint: bool = True
 
     #environment specific arguments
@@ -53,6 +54,7 @@ class Args:
     total_env_steps: int = 100000000 # 50000000
     num_epochs: int = 100 # 50
     num_envs: int = 512
+    eval_env_id: str = ""
     num_eval_envs: int = 128
     actor_lr: float = 3e-4
     critic_lr: float = 3e-4
@@ -307,7 +309,7 @@ if __name__ == "__main__":
         args.critic_network_width = args.network_width
         args.actor_network_width = args.network_width
     
-    run_name = f"{args.env_id}_{args.batch_size}_critbx:{args.critic_batch_size_multiplier}_actbx:{args.actor_batch_size_multiplier}_batchdiv2:{args.batchdiv2}_{args.total_env_steps}_nenvs:{args.num_envs}_criticwidth:{args.critic_network_width}_actorwidth:{args.actor_network_width}_criticdepth:{args.critic_depth}_actordepth:{args.actor_depth}_actorskip:{args.actor_skip_connections}_criticskip:{args.critic_skip_connections}_epspenv:{args.num_episodes_per_env}_trainmult:{args.training_steps_multiplier}_mrn:{args.mrn}_memorybank:{args.memory_bank}_sgdbatchesptrainstep:{args.num_sgd_batches_per_training_step}_useallbatches:{args.use_all_batches}_eplen:{args.episode_length}_maxbuffersize:{args.max_replay_size}_evalactor:{args.eval_actor}_explactor:{args.expl_actor}_{args.seed}"
+    run_name = f"{args.env_id}{'_' + args.eval_env_id if args.eval_env_id else ''}_{args.batch_size}_critbx:{args.critic_batch_size_multiplier}_actbx:{args.actor_batch_size_multiplier}_batchdiv2:{args.batchdiv2}_{args.total_env_steps}_nenvs:{args.num_envs}_criticwidth:{args.critic_network_width}_actorwidth:{args.actor_network_width}_criticdepth:{args.critic_depth}_actordepth:{args.actor_depth}_actorskip:{args.actor_skip_connections}_criticskip:{args.critic_skip_connections}_epspenv:{args.num_episodes_per_env}_trainmult:{args.training_steps_multiplier}_mrn:{args.mrn}_memorybank:{args.memory_bank}_sgdbatchesptrainstep:{args.num_sgd_batches_per_training_step}_useallbatches:{args.use_all_batches}_eplen:{args.episode_length}_maxbuffersize:{args.max_replay_size}_evalactor:{args.eval_actor}_explactor:{args.expl_actor}_vislen:{args.vis_length}__{args.seed}"
     print(f"run_name: {run_name}", flush=True)
     
     if args.track:
@@ -344,9 +346,9 @@ if __name__ == "__main__":
     key, buffer_key, env_key, eval_env_key, actor_key, sa_key, g_key, sym_key, asym_key, memory_bank_key = jax.random.split(key, 10)
 
 
-    def make_env():
-        print(f"making env with args.env_id: {args.env_id}", flush=True)
-        if args.env_id == "reacher":
+    def make_env(env_id=args.env_id):
+        print(f"making env with env_id: {env_id}", flush=True)
+        if env_id == "reacher":
             from envs.reacher import Reacher
             env = Reacher(
                 backend="spring",
@@ -354,8 +356,15 @@ if __name__ == "__main__":
             args.obs_dim = 10
             args.goal_start_idx = 4
             args.goal_end_idx = 7
-        # Environment setup    
-        elif args.env_id == "ant":
+        elif env_id == "pusher":
+            from envs.pusher import Pusher
+            env = Pusher(
+                backend="spring",
+            )
+            args.obs_dim = 20
+            args.goal_start_idx = 10
+            args.goal_end_idx = 13
+        elif env_id == "ant":
             from envs.ant import Ant
             env = Ant(
                 backend="spring",
@@ -367,20 +376,20 @@ if __name__ == "__main__":
             args.goal_start_idx = 0
             args.goal_end_idx = 2
 
-        elif "maze" in args.env_id:
+        elif "maze" in env_id:
             from envs.ant_maze import AntMaze
             env = AntMaze(
                 backend="spring",
                 exclude_current_positions_from_observation=False,
                 terminate_when_unhealthy=True,
-                maze_layout_name=args.env_id[4:]
+                maze_layout_name=env_id[4:]
             )
 
             args.obs_dim = 29
             args.goal_start_idx = 0
             args.goal_end_idx = 2
         
-        elif args.env_id == "ant_ball":
+        elif env_id == "ant_ball":
             from envs.ant_ball import AntBall
             env = AntBall(
                 backend="spring",
@@ -392,19 +401,17 @@ if __name__ == "__main__":
             args.goal_start_idx = 28
             args.goal_end_idx = 30
 
-        elif args.env_id == "ant_push":
+        elif env_id == "ant_push":
             from envs.ant_push import AntPush
             env = AntPush(
                 backend="spring",
-                exclude_current_positions_from_observation=False,
-                terminate_when_unhealthy=True,
             )
 
             args.obs_dim = 31
             args.goal_start_idx = 0
             args.goal_end_idx = 2
         
-        elif args.env_id == "humanoid":
+        elif env_id == "humanoid":
             from envs.humanoid import Humanoid
             env = Humanoid(
                 backend="spring",
@@ -416,7 +423,7 @@ if __name__ == "__main__":
             args.goal_start_idx = 0
             args.goal_end_idx = 3
             
-        elif args.env_id == "arm_reach":
+        elif env_id == "arm_reach":
             from envs.manipulation.arm_reach import ArmReach
             env = ArmReach(
                 backend="mjx",
@@ -426,7 +433,7 @@ if __name__ == "__main__":
             args.goal_start_idx = 7
             args.goal_end_idx = 10
             
-        elif args.env_id == "arm_binpick_easy":
+        elif env_id == "arm_binpick_easy":
             from envs.manipulation.arm_binpick_easy import ArmBinpickEasy
             env = ArmBinpickEasy(
                 backend="mjx",
@@ -436,7 +443,7 @@ if __name__ == "__main__":
             args.goal_start_idx = 0
             args.goal_end_idx = 3
             
-        elif args.env_id == "arm_binpick_hard":
+        elif env_id == "arm_binpick_hard":
             from envs.manipulation.arm_binpick_hard import ArmBinpickHard
             env = ArmBinpickHard(
                 backend="mjx",
@@ -446,7 +453,7 @@ if __name__ == "__main__":
             args.goal_start_idx = 0
             args.goal_end_idx = 3
         
-        elif args.env_id == "arm_grasp":
+        elif env_id == "arm_grasp":
             from envs.manipulation.arm_grasp import ArmGrasp
             env = ArmGrasp(
                 backend="mjx",
@@ -456,7 +463,7 @@ if __name__ == "__main__":
             args.goal_start_idx = 16
             args.goal_end_idx = 23
         
-        elif args.env_id == "arm_push_easy":
+        elif env_id == "arm_push_easy":
             from envs.manipulation.arm_push_easy import ArmPushEasy
             env = ArmPushEasy(
                 backend="mjx",
@@ -466,7 +473,7 @@ if __name__ == "__main__":
             args.goal_start_idx = 0
             args.goal_end_idx = 3
         
-        elif args.env_id == "arm_push_hard":
+        elif env_id == "arm_push_hard":
             from envs.manipulation.arm_push_hard import ArmPushHard
             env = ArmPushHard(
                 backend="mjx",
@@ -494,6 +501,22 @@ if __name__ == "__main__":
     env.step = jax.jit(env.step)
     
     print(f"obs_size: {obs_size}, action_size: {action_size}", flush=True)
+    
+    
+    if not args.eval_env_id:
+        args.eval_env_id = args.env_id
+        
+    # make eval env
+    eval_env = make_env(args.eval_env_id)
+    eval_env = envs.training.wrap(
+        eval_env,
+        episode_length=args.episode_length,
+    )
+    eval_env_keys = jax.random.split(eval_env_key, args.num_envs)
+    eval_env_state = jax.jit(eval_env.reset)(eval_env_keys)
+    eval_env.step = jax.jit(eval_env.step)
+        
+    
 
     # Network setup
     # Actor
@@ -1015,12 +1038,13 @@ if __name__ == "__main__":
     training_state, env_state, buffer_state, _ = prefill_replay_buffer(
         training_state, env_state, buffer_state, prefill_key
     )
+    
 
     if args.eval_actor == 0:
         '''Setting up evaluator'''
         evaluator = CrlEvaluator(
             deterministic_actor_step,
-            env,
+            eval_env,
             num_eval_envs=args.num_eval_envs,
             episode_length=args.episode_length,
             key=eval_env_key,
@@ -1036,7 +1060,7 @@ if __name__ == "__main__":
                 eval_actor_key,
                 extra_fields
             ),
-            env,
+            eval_env,
             num_eval_envs=args.num_eval_envs,
             episode_length=args.episode_length,
             key=eval_env_key,
@@ -1054,7 +1078,7 @@ if __name__ == "__main__":
                 args.eval_actor,  # Use eval_actor as K parameter
                 extra_fields
             ),
-            env,
+            eval_env,
             num_eval_envs=args.num_eval_envs,
             episode_length=args.episode_length,
             key=eval_env_key,
@@ -1124,16 +1148,20 @@ if __name__ == "__main__":
                 return next_state, env_state  # Return current state for visualization
             
             rollout_states = []
-            for i in range(5):
+            for i in range(10):
                 # env = Humanoid(backend=None or "spring")
-                env = make_env()
+                # if args.eval_env_id:
+                #     env = make_env(args.eval_env_id)
+                # else:
+                #     env = make_env()
+                env = make_env(args.eval_env_id)
                 
                 # Initialize environment
                 rng = jax.random.PRNGKey(seed=i+1)
                 env_state = jax.jit(env.reset)(rng)
                 
                 # Collect rollout using jitted function
-                for _ in range(1000):
+                for _ in range(args.vis_length):
                     env_state, current_state = policy_step(env_state, training_state.actor_state.params)
                     rollout_states.append(current_state.pipeline_state)
             
