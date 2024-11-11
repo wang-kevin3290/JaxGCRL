@@ -31,7 +31,7 @@ class ArmGrasp(ArmEnvs):
         self.state_dim = 23
 
         self.arm_noise_scale = 0
-        self.cube_noise_scale = 0.3
+        self.cube_noise_scale = 0.0
         
     def _get_initial_state(self, rng):
         rng, subkey1, subkey2 = jax.random.split(rng, 3)
