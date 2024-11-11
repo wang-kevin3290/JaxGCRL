@@ -87,7 +87,7 @@ class Args:
     # should be something like batch_size / 256
     training_steps_multiplier: int = 1 #should have the same effect as num_episodes_per_env, hmmm
     use_all_batches: int = 0 # if 1, use all batches; if 0, use a random subset of batches
-    num_sgd_batches_per_training_step: int = 200 # this parameter so as to hold the number of batches constant (no matter batch_size, etc)
+    num_sgd_batches_per_training_step: int = 800 # this parameter so as to hold the number of batches constant (no matter batch_size, etc)
     
     mrn: int = 0
     memory_bank: int = 0

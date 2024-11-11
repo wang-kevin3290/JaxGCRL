@@ -319,6 +319,7 @@ runs/
 
 # Slurm
 **/slurm-*.out
+**/slurm-*.err
 
 # Other stuff
 **/scripts/*.sh
