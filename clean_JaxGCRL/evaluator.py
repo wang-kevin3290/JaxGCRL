@@ -67,7 +67,7 @@ class CrlEvaluator():
                   f"eval/episode_{name}{suffix}": (
                       fn(eval_metrics.episode_metrics[name]) if aggregate_episodes else eval_metrics.episode_metrics[name]
                   )
-                  for name in ['reward', 'success', 'success_easy', 'dist', 'distance_from_origin']
+                  for name in ['reward', 'success', 'success_easy', 'success_hard', 'dist', 'distance_from_origin']
                   if name in eval_metrics.episode_metrics #THIS WAS ADDED BY ME (for arm tasks, may not be)
               }
           )
