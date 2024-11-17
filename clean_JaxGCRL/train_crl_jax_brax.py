@@ -378,7 +378,7 @@ if __name__ == "__main__":
             args.goal_start_idx = 0
             args.goal_end_idx = 2
 
-        elif "maze" in env_id:
+        elif "ant" in env_id and "maze" in env_id: #needed the add the ant check to differentiate with humanoid maze
             from envs.ant_maze import AntMaze
             env = AntMaze(
                 backend="spring",
@@ -412,18 +412,18 @@ if __name__ == "__main__":
             args.obs_dim = 31
             args.goal_start_idx = 0
             args.goal_end_idx = 2
-        
-        elif env_id == "humanoid":
-            from envs.humanoid import Humanoid
-            env = Humanoid(
+            
+        elif "humanoid" in env_id and "maze" in env_id:
+            from envs.humanoid_maze import HumanoidMaze
+            env = HumanoidMaze(
                 backend="spring",
-                exclude_current_positions_from_observation=False,
-                terminate_when_unhealthy=True,
+                maze_layout_name=env_id[9:]
             )
 
             args.obs_dim = 268
             args.goal_start_idx = 0
             args.goal_end_idx = 3
+
             
         elif env_id == "arm_reach":
             from envs.manipulation.arm_reach import ArmReach
@@ -452,6 +452,16 @@ if __name__ == "__main__":
             )
 
             args.obs_dim = 17
+            args.goal_start_idx = 0
+            args.goal_end_idx = 3
+            
+        elif env_id == "arm_binpick_easy_EEF":
+            from envs.manipulation.arm_binpick_easy_EEF import ArmBinpickEasyEEF
+            env = ArmBinpickEasyEEF(
+                backend="mjx",
+            )
+
+            args.obs_dim = 11
             args.goal_start_idx = 0
             args.goal_end_idx = 3
         

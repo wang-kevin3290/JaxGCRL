@@ -64,7 +64,7 @@ class ArmEnvs(PipelineEnv):
             action = self._convert_action_to_actuator_input_joint_angle(action, arm_angles, delta_control=False)
         
         pipeline_state = self.pipeline_step(pipeline_state0, action)
-                
+        
         # Compute variables for state update, including observation and goal/reward
         timestep = state.info["timestep"] + 1 / self.episode_length
         obs = self._get_obs(pipeline_state, state.info["goal"], timestep)
@@ -127,14 +127,14 @@ class ArmEnvs(PipelineEnv):
         # If f(x) = offset + x * multiplier, then this offset and multiplier yield f(-1) = min_value, f(1) = max_value.
         offset = (min_value + max_value) / 2 
         multiplier = (max_value - min_value) / 2
-        
+
         # Retrieve absolute angle target in [-1, 1] space from delta actions in [-1, 1]
         if delta_control:
             normalized_arm_angles = jnp.where(multiplier > 0, (arm_angles - offset) / multiplier, 0) # Convert arm angles back to [-1, 1] space
-            delta_range = 0.5 # If this number is 0.25, an action of +/- 1 targets an angle 25% of the max range away from the current angle.
+            delta_range = 0.25 # If this number is 0.25, an action of +/- 1 targets an angle 25% of the max range away from the current angle.
             arm_action = normalized_arm_angles + arm_action * delta_range
             arm_action = jnp.clip(arm_action, -1, 1)
-        
+
         # Rescale back to absolute angle space in radians
         arm_action = offset + arm_action * multiplier
         
@@ -147,7 +147,7 @@ class ArmEnvs(PipelineEnv):
             converted_action = arm_action
         
         return converted_action
-
+    
     def _convert_action_to_actuator_input_EEF(self, pipeline_state: base.State, action: jax.Array) -> jax.Array:
         eef_index = 2
         current_position = pipeline_state.x.pos[eef_index]
