@@ -406,12 +406,24 @@ if __name__ == "__main__":
         elif env_id == "ant_push":
             from envs.ant_push import AntPush
             env = AntPush(
-                backend="spring",
+                backend="mjx",
             )
 
             args.obs_dim = 31
             args.goal_start_idx = 0
             args.goal_end_idx = 2
+            
+        elif env_id == "humanoid":
+            from envs.humanoid import Humanoid
+            env = Humanoid(
+                backend="spring",
+                exclude_current_positions_from_observation=False,
+                terminate_when_unhealthy=True,
+            )
+
+            args.obs_dim = 268
+            args.goal_start_idx = 0
+            args.goal_end_idx = 3
             
         elif "humanoid" in env_id and "maze" in env_id:
             from envs.humanoid_maze import HumanoidMaze
