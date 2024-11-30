@@ -1199,7 +1199,10 @@ if __name__ == "__main__":
             wandb.log({"vis": wandb.Html(html_string)})
             
         print("Rendering final policy...", flush=True)
-        render_policy(training_state, save_path)
+        try:
+            render_policy(training_state, save_path)
+        except Exception as e:
+            print(f"Error rendering final policy: {e}", flush=True)
         
         
         
