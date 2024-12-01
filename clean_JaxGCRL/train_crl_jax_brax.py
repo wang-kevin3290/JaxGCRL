@@ -114,6 +114,9 @@ class Args:
     # if K >= 2, sample K actions and take the one with the highest Q value
     
     entropy_param: float = 0.5
+    disable_entropy: int = 0
+    
+    use_relu: int = 0
     
     
     
@@ -132,6 +135,7 @@ class SA_encoder(nn.Module):
     network_width: int = 1024
     network_depth: int = 4
     skip_connections: int = 0
+    use_relu: int = 0
     @nn.compact
     def __call__(self, s: jnp.ndarray, a: jnp.ndarray):
 
@@ -142,12 +146,17 @@ class SA_encoder(nn.Module):
             normalize = lambda x: nn.LayerNorm()(x)
         else:
             normalize = lambda x: x
+        
+        if self.use_relu:
+            activation = nn.relu
+        else:
+            activation = nn.swish
 
         x = jnp.concatenate([s, a], axis=-1)
         for i in range(self.network_depth):
             x = nn.Dense(self.network_width, kernel_init=lecun_unfirom, bias_init=bias_init)(x)
             x = normalize(x)
-            x = nn.swish(x)
+            x = activation(x)
             
             if self.skip_connections:
                 if i == 0:
@@ -164,6 +173,7 @@ class G_encoder(nn.Module):
     network_width: int = 1024
     network_depth: int = 4
     skip_connections: int = 0
+    use_relu: int = 0
     @nn.compact
     def __call__(self, g: jnp.ndarray):
 
@@ -175,11 +185,16 @@ class G_encoder(nn.Module):
         else:
             normalize = lambda x: x
         
+        if self.use_relu:
+            activation = nn.relu
+        else:
+            activation = nn.swish
+        
         x = g
         for i in range(self.network_depth):
             x = nn.Dense(self.network_width, kernel_init=lecun_unfirom, bias_init=bias_init)(x)
             x = normalize(x)
-            x = nn.swish(x)
+            x = activation(x)
             
             if self.skip_connections:
                 if i == 0:
@@ -221,6 +236,7 @@ class Actor(nn.Module):
     network_width: int = 1024
     network_depth: int = 4
     skip_connections: int = 0 # 0 for no skip connections, >= 0 means the frequency of skip connections (every X layers)
+    use_relu: int = 0
     LOG_STD_MAX = 2
     LOG_STD_MIN = -5
 
@@ -230,6 +246,11 @@ class Actor(nn.Module):
             normalize = lambda x: nn.LayerNorm()(x)
         else:
             normalize = lambda x: x
+            
+        if self.use_relu:
+            activation = nn.relu
+        else:
+            activation = nn.swish
 
         lecun_unfirom = variance_scaling(1/3, "fan_in", "uniform")
         bias_init = nn.initializers.zeros
@@ -239,7 +260,7 @@ class Actor(nn.Module):
         for i in range(self.network_depth):
             x = nn.Dense(self.network_width, kernel_init=lecun_unfirom, bias_init=bias_init)(x)
             x = normalize(x)
-            x = nn.swish(x)
+            x = activation(x)
             
             if self.skip_connections:
                 if i == 0:
@@ -311,7 +332,7 @@ if __name__ == "__main__":
         args.critic_network_width = args.network_width
         args.actor_network_width = args.network_width
     
-    run_name = f"{args.env_id}{'_' + args.eval_env_id if args.eval_env_id else ''}_{args.batch_size}_critbx:{args.critic_batch_size_multiplier}_actbx:{args.actor_batch_size_multiplier}_batchdiv2:{args.batchdiv2}_{args.total_env_steps}_nenvs:{args.num_envs}_criticwidth:{args.critic_network_width}_actorwidth:{args.actor_network_width}_criticdepth:{args.critic_depth}_actordepth:{args.actor_depth}_actorskip:{args.actor_skip_connections}_criticskip:{args.critic_skip_connections}_epspenv:{args.num_episodes_per_env}_trainmult:{args.training_steps_multiplier}_mrn:{args.mrn}_memorybank:{args.memory_bank}_sgdbatchesptrainstep:{args.num_sgd_batches_per_training_step}_useallbatches:{args.use_all_batches}_eplen:{args.episode_length}_maxbuffersize:{args.max_replay_size}_evalactor:{args.eval_actor}_explactor:{args.expl_actor}_vislen:{args.vis_length}_critlr:{args.critic_lr}_actlr:{args.actor_lr}_alplr:{args.alpha_lr}_entropy:{args.entropy_param}_{args.seed}"
+    run_name = f"{args.env_id}{'_' + args.eval_env_id if args.eval_env_id else ''}_{args.batch_size}_critbx:{args.critic_batch_size_multiplier}_actbx:{args.actor_batch_size_multiplier}_batchdiv2:{args.batchdiv2}_{args.total_env_steps}_nenvs:{args.num_envs}_criticwidth:{args.critic_network_width}_actorwidth:{args.actor_network_width}_criticdepth:{args.critic_depth}_actordepth:{args.actor_depth}_actorskip:{args.actor_skip_connections}_criticskip:{args.critic_skip_connections}_epspenv:{args.num_episodes_per_env}_trainmult:{args.training_steps_multiplier}_mrn:{args.mrn}_memorybank:{args.memory_bank}_sgdbatchesptrainstep:{args.num_sgd_batches_per_training_step}_useallbatches:{args.use_all_batches}_eplen:{args.episode_length}_maxbuffersize:{args.max_replay_size}_evalactor:{args.eval_actor}_explactor:{args.expl_actor}_vislen:{args.vis_length}_critlr:{args.critic_lr}_actlr:{args.actor_lr}_alplr:{args.alpha_lr}_entropy:{args.entropy_param}_disable_entropy:{args.disable_entropy}_relu:{args.use_relu}_{args.seed}"
     print(f"run_name: {run_name}", flush=True)
     
     if args.track:
@@ -546,7 +567,7 @@ if __name__ == "__main__":
 
     # Network setup
     # Actor
-    actor = Actor(action_size=action_size, network_width=args.actor_network_width, network_depth=args.actor_depth, skip_connections=args.actor_skip_connections)
+    actor = Actor(action_size=action_size, network_width=args.actor_network_width, network_depth=args.actor_depth, skip_connections=args.actor_skip_connections, use_relu=args.use_relu)
     actor_state = TrainState.create(
         apply_fn=actor.apply,
         params=actor.init(actor_key, np.ones([1, obs_size])),
@@ -554,9 +575,9 @@ if __name__ == "__main__":
     )
 
     # Critic
-    sa_encoder = SA_encoder(network_width=args.critic_network_width, network_depth=args.critic_depth, skip_connections=args.critic_skip_connections)
+    sa_encoder = SA_encoder(network_width=args.critic_network_width, network_depth=args.critic_depth, skip_connections=args.critic_skip_connections, use_relu=args.use_relu)
     sa_encoder_params = sa_encoder.init(sa_key, np.ones([1, args.obs_dim]), np.ones([1, action_size]))
-    g_encoder = G_encoder(network_width=args.critic_network_width, network_depth=args.critic_depth, skip_connections=args.critic_skip_connections)
+    g_encoder = G_encoder(network_width=args.critic_network_width, network_depth=args.critic_depth, skip_connections=args.critic_skip_connections, use_relu=args.use_relu)
     g_encoder_params = g_encoder.init(g_key, np.ones([1, args.goal_end_idx - args.goal_start_idx]))
     # c = jnp.asarray(0.0, dtype=jnp.float32) (NOT USED IN CODE, WHATS THIS)
     
@@ -804,7 +825,10 @@ if __name__ == "__main__":
 
             qf_pi = -jnp.sqrt(jnp.sum((sa_repr - g_repr) ** 2, axis=-1))
 
-            actor_loss = jnp.mean( jnp.exp(log_alpha) * log_prob - (qf_pi) )
+            if args.disable_entropy:
+                actor_loss = -jnp.mean(qf_pi)
+            else:
+                actor_loss = jnp.mean( jnp.exp(log_alpha) * log_prob - (qf_pi) )
 
             return actor_loss, log_prob
 
