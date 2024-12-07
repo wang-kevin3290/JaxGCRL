@@ -320,9 +320,17 @@ runs/
 # Slurm
 **/slurm-*.out
 **/slurm-*.err
+**/*.slurm
 
 # Other stuff
 **/scripts/*.sh
 
 clean_JaxGCRL/job.slurm
+
+#Vis
+**/vis/*.html
+
+#pkl files
+**.pkl
+
 
