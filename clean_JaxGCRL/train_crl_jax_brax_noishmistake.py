@@ -167,6 +167,7 @@ class SA_encoder(nn.Module):
         else:
             activation = nn.swish
             
+        x = jnp.concatenate([s, a], axis=-1)
         #Initial layer
         x = nn.Dense(self.network_width, kernel_init=lecun_unfirom, bias_init=bias_init)(x)
         x = normalize(x)
