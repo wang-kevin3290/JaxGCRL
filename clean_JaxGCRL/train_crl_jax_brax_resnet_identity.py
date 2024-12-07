@@ -118,7 +118,7 @@ class Args:
     
     use_relu: int = 0
     
-    resnet: str = "orig"
+    resnet: str = "identity"
     
     
     
