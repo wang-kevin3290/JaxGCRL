@@ -132,6 +132,8 @@ class Args:
     num_training_steps_per_epoch : int = 0
     """the number of training steps per epoch(computed in runtime)"""
 
+lecun_unfirom = variance_scaling(1/3, "fan_in", "uniform")
+bias_init = nn.initializers.zeros
 def residual_block(x, width, normalize, activation):
     identity = x
     x = nn.Dense(width, kernel_init=lecun_unfirom, bias_init=bias_init)(x)
