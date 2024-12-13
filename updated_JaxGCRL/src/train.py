@@ -146,6 +146,8 @@ def train(
     use_ln: bool = False,
     h_dim: int = 256,
     n_hidden: int = 2,
+    skip_connections: int = 0,
+    clean_jax_arch: bool = False,
 ):
     """CRL training."""
     process_id = jax.process_index()
@@ -216,6 +218,8 @@ def train(
         preprocess_observations_fn=normalize_fn,
         hidden_layer_sizes=[h_dim] * n_hidden,
         use_ln=use_ln,
+        skip_connections=skip_connections,
+        clean_jax_arch=clean_jax_arch
     )
     make_policy = crl_networks.make_inference_fn(crl_network)
 

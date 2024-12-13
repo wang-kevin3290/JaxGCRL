@@ -58,6 +58,8 @@ def main(args):
         use_ln=args.use_ln,
         h_dim=args.h_dim,
         n_hidden=args.n_hidden,
+        skip_connections=args.skip_connections,
+        clean_jax_arch=args.clean_jax_arch
     )
 
     metrics_recorder = MetricsRecorder(args.num_timesteps)

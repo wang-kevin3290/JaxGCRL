@@ -8,6 +8,7 @@ from brax.training.types import PRNGKey
 import flax
 from flax import linen
 import jax.numpy as jnp
+from flax.linen.initializers import variance_scaling
 
 ActivationFn = Callable[[jnp.ndarray], jnp.ndarray]
 Initializer = Callable[..., Any]
@@ -54,42 +55,43 @@ class MLP(linen.Module):
             hidden = self.activation(hidden)
         return hidden
     
-# class MLPCleanJax(linen.Module):
-#     norm_type = "layer_norm"
-#     network_width: int = 1024
-#     network_depth: int = 4
-#     skip_connections: int = 0
-#     use_relu: int = 0
-#     @linen.compact
-#     def __call__(self, data: jnp.ndarray):
-#         x = data
-#         lecun_unfirom = variance_scaling(1/3, "fan_in", "uniform")
-#         bias_init = nn.initializers.zeros
+class MLPCleanJax(linen.Module):
+    norm_type = "layer_norm"
+    network_width: int = 1024
+    network_depth: int = 4
+    output_size: int = 64
+    skip_connections: int = 0
+    use_relu: int = 0
+    @linen.compact
+    def __call__(self, data: jnp.ndarray):
+        x = data
+        lecun_unfirom = variance_scaling(1/3, "fan_in", "uniform")
+        bias_init = linen.initializers.zeros
 
-#         if self.norm_type == "layer_norm":
-#             normalize = lambda x: nn.LayerNorm()(x)
-#         else:
-#             normalize = lambda x: x
+        if self.norm_type == "layer_norm":
+            normalize = lambda x: linen.LayerNorm()(x)
+        else:
+            normalize = lambda x: x
         
-#         if self.use_relu:
-#             activation = nn.relu
-#         else:
-#             activation = nn.swish
+        if self.use_relu:
+            activation = linen.relu
+        else:
+            activation = linen.swish
         
-#         for i in range(self.network_depth):
-#             x = nn.Dense(self.network_width, kernel_init=lecun_unfirom, bias_init=bias_init)(x)
-#             x = normalize(x)
-#             x = activation(x)
+        for i in range(self.network_depth):
+            x = linen.Dense(self.network_width, kernel_init=lecun_unfirom, bias_init=bias_init)(x)
+            x = normalize(x)
+            x = activation(x)
             
-#             if self.skip_connections:
-#                 if i == 0:
-#                     skip = x
-#                 if i > 0 and i % self.skip_connections == 0:
-#                     x = x + skip
-#                     skip = x
+            if self.skip_connections:
+                if i == 0:
+                    skip = x
+                if i > 0 and i % self.skip_connections == 0:
+                    x = x + skip
+                    skip = x
         
-#         x = nn.Dense(64, kernel_init=lecun_unfirom, bias_init=bias_init)(x)
-#         return x
+        x = linen.Dense(self.output_size, kernel_init=lecun_unfirom, bias_init=bias_init)(x)
+        return x
 
 
 def make_embedder(
@@ -99,18 +101,15 @@ def make_embedder(
     preprocess_observations_fn: types.PreprocessObservationFn = types,
     use_ln: bool = False,
     skip_connections: int = 0,
-    clean_jax_arch: bool = False,
-    # clean_jax_arch: bool = False
-) -> networks.FeedForwardNetwork:
+    clean_jax_arch: bool = False) -> networks.FeedForwardNetwork:
 
     """Creates a model."""
     dummy_obs = jnp.zeros((1, obs_size))
-    module = MLP(layer_sizes=layer_sizes, activation=activation, use_layer_norm=use_ln, skip_connections=skip_connections)
-    # if not clean_jax_arch:
-    #     module = MLP(layer_sizes=layer_sizes, activation=activation, use_layer_norm=use_ln, skip_connections=skip_connections)
-    # else:
-    #     assert all(layer_size == layer_sizes[0] for layer_size in layer_sizes[:-1]), "All layers except the last must be the same size"
-    #     module = MLPCleanJax(network_width=layer_sizes[0], network_depth=len(layer_sizes) - 1, skip_connections=skip_connections)
+    if not clean_jax_arch:
+        module = MLP(layer_sizes=layer_sizes, activation=activation, use_layer_norm=use_ln, skip_connections=skip_connections)
+    else:
+        assert all(layer_size == layer_sizes[0] for layer_size in layer_sizes[:-1]), "All layers except the last must be the same size"
+        module = MLPCleanJax(network_width=layer_sizes[0], network_depth=len(layer_sizes) - 1, output_size=layer_sizes[-1], skip_connections=skip_connections)
 
     # TODO: should we have a function to preprocess the observations?
     def apply(processor_params, policy_params, obs):
@@ -126,9 +125,14 @@ def make_policy_network(
     preprocess_observations_fn: types.PreprocessObservationFn = types.identity_observation_preprocessor,
     hidden_layer_sizes: Sequence[int] = (256, 256),
     activation: ActivationFn = linen.relu,
-    skip_connections: int = 0) -> networks.FeedForwardNetwork:
+    skip_connections: int = 0,
+    clean_jax_arch: bool = False) -> networks.FeedForwardNetwork:
     """Creates a policy network."""
-    policy_module = MLP(layer_sizes=list(hidden_layer_sizes) + [param_size], activation=activation, kernel_init=jax.nn.initializers.lecun_uniform(), skip_connections=skip_connections)
+    if not clean_jax_arch:
+        policy_module = MLP(layer_sizes=list(hidden_layer_sizes) + [param_size], activation=activation, kernel_init=jax.nn.initializers.lecun_uniform(), skip_connections=skip_connections)
+    else:
+        assert all(layer_size == hidden_layer_sizes[0] for layer_size in hidden_layer_sizes[:-1]), "All layers except the last must be the same size"
+        policy_module = MLPCleanJax(network_width=hidden_layer_sizes[0], network_depth=len(hidden_layer_sizes) - 1, output_size=param_size, skip_connections=skip_connections)
 
     def apply(processor_params, policy_params, obs):
         obs = preprocess_observations_fn(obs, processor_params)
@@ -161,7 +165,8 @@ def make_crl_networks(
     hidden_layer_sizes: Sequence[int] = (256, 256),
     activation: networks.ActivationFn = linen.relu,
     use_ln: bool= False,
-    skip_connections: int = 0
+    skip_connections: int = 0,
+    clean_jax_arch: bool = False
 ) -> CRLNetworks:
     """Make CRL networks."""
     parametric_action_distribution = distribution.NormalTanhDistribution(event_size=action_size)
@@ -172,7 +177,8 @@ def make_crl_networks(
         preprocess_observations_fn=preprocess_observations_fn,
         hidden_layer_sizes=hidden_layer_sizes,
         activation=activation,
-        skip_connections=skip_connections
+        skip_connections=skip_connections,
+        clean_jax_arch=clean_jax_arch
     )
     sa_encoder = make_embedder(
         layer_sizes=list(hidden_layer_sizes) + [config.repr_dim],
@@ -180,7 +186,8 @@ def make_crl_networks(
         activation=activation,
         preprocess_observations_fn=preprocess_observations_fn,
         use_ln=use_ln,
-        skip_connections=skip_connections
+        skip_connections=skip_connections,
+        clean_jax_arch=clean_jax_arch
     )
     g_encoder = make_embedder(
         layer_sizes=list(hidden_layer_sizes) + [config.repr_dim],
@@ -188,7 +195,8 @@ def make_crl_networks(
         activation=activation,
         preprocess_observations_fn=preprocess_observations_fn,
         use_ln=use_ln,
-        skip_connections=skip_connections
+        skip_connections=skip_connections,
+        clean_jax_arch=clean_jax_arch
     )
 
     return CRLNetworks(
