@@ -47,6 +47,8 @@ def main(args):
         min_replay_size=args.min_replay_size,
         seed=args.seed,
         eval_env=eval_env,
+        h_dim=args.h_dim,
+        n_hidden=args.n_hidden,
         skip_connections=args.skip_connections,
         clean_jax_arch=args.clean_jax_arch
     )

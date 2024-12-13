@@ -263,6 +263,8 @@ def train(
     checkpoint_logdir: Optional[str] = None,
     eval_env: Optional[envs.Env] = None,
     randomization_fn: Optional[Callable[[base.System, jnp.ndarray], Tuple[base.System, base.System]]] = None,
+    h_dim: int = 256,
+    n_hidden: int = 4,
     skip_connections: int = 0,
     clean_jax_arch: bool = False
 ):
@@ -324,7 +326,7 @@ def train(
     if normalize_observations:
         normalize_fn = running_statistics.normalize
     sac_network = network_factory(
-        observation_size=obs_size, action_size=action_size, preprocess_observations_fn=normalize_fn, skip_connections=skip_connections, clean_jax_arch=clean_jax_arch
+        observation_size=obs_size, action_size=action_size, preprocess_observations_fn=normalize_fn, hidden_layer_sizes=[h_dim] * n_hidden, skip_connections=skip_connections, clean_jax_arch=clean_jax_arch
     )
     make_policy = sac_networks.make_inference_fn(sac_network)
 
@@ -681,7 +683,8 @@ def train(
     training_walltime = time.time() - t
 
     current_step = 0
-    for _ in range(num_evals_after_init):
+    for i in range(num_evals_after_init):
+        print(f"iteration {i} out of {num_evals_after_init}", flush=True)
         logging.info("step %s", current_step)
 
         # Optimization

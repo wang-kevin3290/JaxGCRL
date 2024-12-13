@@ -589,7 +589,8 @@ def train(
     training_walltime = time.time() - t
 
     current_step = 0
-    for _ in range(num_evals_after_init):
+    for i in range(num_evals_after_init):
+        print(f"iteration {i} out of {num_evals_after_init}", flush=True)
         logging.info("step %s", current_step)
 
         # Optimization
