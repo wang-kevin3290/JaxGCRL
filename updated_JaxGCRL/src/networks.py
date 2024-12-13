@@ -99,6 +99,7 @@ def make_embedder(
     preprocess_observations_fn: types.PreprocessObservationFn = types,
     use_ln: bool = False,
     skip_connections: int = 0,
+    clean_jax_arch: bool = False,
     # clean_jax_arch: bool = False
 ) -> networks.FeedForwardNetwork:
 
@@ -124,12 +125,10 @@ def make_policy_network(
     obs_size: int,
     preprocess_observations_fn: types.PreprocessObservationFn = types.identity_observation_preprocessor,
     hidden_layer_sizes: Sequence[int] = (256, 256),
-    activation: ActivationFn = linen.relu) -> networks.FeedForwardNetwork:
+    activation: ActivationFn = linen.relu,
+    skip_connections: int = 0) -> networks.FeedForwardNetwork:
     """Creates a policy network."""
-    policy_module = MLP(
-        layer_sizes=list(hidden_layer_sizes) + [param_size],
-        activation=activation,
-        kernel_init=jax.nn.initializers.lecun_uniform())
+    policy_module = MLP(layer_sizes=list(hidden_layer_sizes) + [param_size], activation=activation, kernel_init=jax.nn.initializers.lecun_uniform(), skip_connections=skip_connections)
 
     def apply(processor_params, policy_params, obs):
         obs = preprocess_observations_fn(obs, processor_params)
@@ -173,6 +172,7 @@ def make_crl_networks(
         preprocess_observations_fn=preprocess_observations_fn,
         hidden_layer_sizes=hidden_layer_sizes,
         activation=activation,
+        skip_connections=skip_connections
     )
     sa_encoder = make_embedder(
         layer_sizes=list(hidden_layer_sizes) + [config.repr_dim],
