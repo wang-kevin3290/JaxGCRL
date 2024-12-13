@@ -69,7 +69,8 @@ def create_parser():
     parser.add_argument('--use_dense_reward', default=False, action="store_true", help="Whether to use sparse reward in env")
     parser.add_argument('--use_her', default=False, action="store_true", help="Whether to use HER for SAC")
     parser.add_argument('--skip_connections', type=int, default=0, help="Frequency of skip connections to use in the MLP")
-    parser.add_argument('--clean_jax_arch', default=False, action="store_true", help="Whether to use clean JAX architecture")
+    parser.add_argument('--clean_jax_arch', type=int, default=0, help="Whether to use clean JAX architecture")
+    parser.add_argument('--sac', default=False, help="Whether to use SAC (doesn't affect code, but need it for flagging in wandb, the SAC code automatically sets this to True)")
     return parser
 
 

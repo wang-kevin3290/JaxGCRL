@@ -5,6 +5,7 @@ import pickle
 
 import wandb
 import math
+import random
 from brax.io import model
 from pyinstrument import Profiler
 
@@ -46,7 +47,8 @@ def main(args):
         min_replay_size=args.min_replay_size,
         seed=args.seed,
         eval_env=eval_env,
-        skip_connections=args.skip_connections
+        skip_connections=args.skip_connections,
+        clean_jax_arch=args.clean_jax_arch
     )
 
     metrics_recorder = MetricsRecorder(args.num_timesteps)
@@ -97,8 +99,16 @@ if __name__ == "__main__":
     print("SAC", flush=True)
     parser = create_parser()
     args = parser.parse_args()
+    args.sac = True
 
-    print("Arguments:")
+    #instead of using the given seed, we overwrite it with a random seed from 1 to 1000
+    args.seed = random.randint(1, 1000)
+    #instead of name being exp_name, we define it
+    run_name = f"SAC_{args.env_name}_{args.num_timesteps}_depth:{args.n_hidden}_skip:{args.skip_connections}_cleanJax:{args.clean_jax_arch}_seed:{args.seed}"
+    args.exp_name = run_name
+    print(f"Run name: {run_name}", flush=True)
+    
+    print("Arguments:") 
     print(
         json.dumps(
             vars(args), sort_keys=True, indent=4

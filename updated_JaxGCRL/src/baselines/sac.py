@@ -32,7 +32,8 @@ from brax.training import types
 from brax.training.acme import running_statistics
 from brax.training.acme import specs
 from brax.training.agents.sac import losses as sac_losses
-from brax.training.agents.sac import networks as sac_networks
+# from brax.training.agents.sac import networks as sac_networks
+from src import sac_networks
 from brax.training.acme.types import NestedArray
 from brax.training.types import Params, Policy
 from brax.training.types import PRNGKey
@@ -262,7 +263,8 @@ def train(
     checkpoint_logdir: Optional[str] = None,
     eval_env: Optional[envs.Env] = None,
     randomization_fn: Optional[Callable[[base.System, jnp.ndarray], Tuple[base.System, base.System]]] = None,
-    skip_connections: int = 0
+    skip_connections: int = 0,
+    clean_jax_arch: bool = False
 ):
     """SAC training."""
     process_id = jax.process_index()
@@ -322,7 +324,7 @@ def train(
     if normalize_observations:
         normalize_fn = running_statistics.normalize
     sac_network = network_factory(
-        observation_size=obs_size, action_size=action_size, preprocess_observations_fn=normalize_fn, skip_connections=skip_connections
+        observation_size=obs_size, action_size=action_size, preprocess_observations_fn=normalize_fn, skip_connections=skip_connections, clean_jax_arch=clean_jax_arch
     )
     make_policy = sac_networks.make_inference_fn(sac_network)
 

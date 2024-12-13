@@ -13,7 +13,7 @@ dependencies:
   - statsmodels==0.14.1
   - pyinstrument=4.6.2
   - matplotlib=3.8.4
-  - wandb
+  - wandb==0.18.7
   - cuda-nvcc
   - cudnn
   - pip
