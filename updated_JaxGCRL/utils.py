@@ -84,8 +84,8 @@ def create_env(args: argparse.Namespace) -> object:
         env = AntBall(backend=args.backend or "spring")
     elif env_name == "ant_push":
         # This is stable only in mjx backend
-        assert args.backend == "mjx"
-        env = AntPush(backend=args.backend)
+        assert args.backend is None or args.backend == "mjx"
+        env = AntPush(backend=args.backend or "mjx")
     elif "maze" in env_name:
         if "ant" in env_name: 
             # Possible env_name = {'ant_u_maze', 'ant_big_maze', 'ant_hardest_maze'}

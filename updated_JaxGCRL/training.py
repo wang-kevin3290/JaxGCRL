@@ -122,7 +122,7 @@ if __name__ == "__main__":
     #instead of using the given seed, we overwrite it with a random seed from 1 to 1000
     args.seed = random.randint(1, 1000)
     #instead of name being exp_name, we define it
-    run_name = f"{args.env_name}_{args.num_timesteps}_depth:{args.n_hidden}_skip:{args.skip_connections}_cleanJax:{args.clean_jax_arch}_seed:{args.seed}"
+    run_name = f"{args.env_name}_{args.num_timesteps}_depth:{args.n_hidden}_width:{args.h_dim}_skip:{args.skip_connections}_cleanJax:{args.clean_jax_arch}_seed:{args.seed}"
     args.exp_name = run_name
     print(f"Run name: {run_name}", flush=True)
 
