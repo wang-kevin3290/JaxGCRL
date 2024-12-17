@@ -44,7 +44,7 @@ class MLP(linen.Module):
             if self.skip_connections > 0:
                 if i == 0:
                     skip = hidden
-                else:
+                if i > 0 and i % self.skip_connections == 0:
                     hidden = hidden + skip
                     skip = hidden
         
