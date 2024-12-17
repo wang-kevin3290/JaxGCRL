@@ -36,6 +36,30 @@ U_MAZE_SINGLE_EVAL = [[1, 1, 1, 1, 1],
                [1, G, 0, 0, 1],
                [1, 1, 1, 1, 1]]
 
+U_MAZE_EVAL_1f2f3f4f5f = [[1, 1, 1, 1, 1],
+               [1, R, G, G, 1],
+               [1, 1, 1, G, 1],
+               [1, 0, G, G, 1],
+               [1, 1, 1, 1, 1]]
+
+U_MAZE_EVAL_1f2f3f4f = [[1, 1, 1, 1, 1],
+               [1, R, G, G, 1],
+               [1, 1, 1, G, 1],
+               [1, 0, 0, G, 1],
+               [1, 1, 1, 1, 1]]
+
+U_MAZE_EVAL_1f2f3f = [[1, 1, 1, 1, 1],
+               [1, R, G, G, 1],
+               [1, 1, 1, G, 1],
+               [1, 0, 0, 0, 1],
+               [1, 1, 1, 1, 1]]
+
+U_MAZE_EVAL_5f6f = [[1, 1, 1, 1, 1],
+               [1, R, 0, 0, 1],
+               [1, 1, 1, 0, 1],
+               [1, G, G, 0, 1],
+               [1, 1, 1, 1, 1]]
+
 
 U2_MAZE = [[1, 1, 1, 1, 1, 1],
            [1, R, G, G, G, 1],
@@ -154,6 +178,14 @@ def make_maze(maze_layout_name, maze_size_scaling):
         maze_layout = U_MAZE_EVAL
     elif maze_layout_name == "u_maze_single_eval":
         maze_layout = U_MAZE_SINGLE_EVAL
+    elif maze_layout_name == "u_maze_eval_1f2f3f4f5f":
+        maze_layout = U_MAZE_EVAL_1f2f3f4f5f
+    elif maze_layout_name == "u_maze_eval_1f2f3f4f":
+        maze_layout = U_MAZE_EVAL_1f2f3f4f
+    elif maze_layout_name == "u_maze_eval_1f2f3f":
+        maze_layout = U_MAZE_EVAL_1f2f3f
+    elif maze_layout_name == "u_maze_eval_5f6f":
+        maze_layout = U_MAZE_EVAL_5f6f
     elif maze_layout_name == "u2_maze":
         maze_layout = U2_MAZE
     elif maze_layout_name == "u2_maze_eval":
