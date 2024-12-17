@@ -400,17 +400,35 @@ if __name__ == "__main__":
             args.goal_end_idx = 2
 
         elif "ant" in env_id and "maze" in env_id: #needed the add the ant check to differentiate with humanoid maze
-            from envs.ant_maze import AntMaze
-            env = AntMaze(
-                backend="spring",
-                exclude_current_positions_from_observation=False,
-                terminate_when_unhealthy=True,
-                maze_layout_name=env_id[4:]
-            )
+            if "gen" not in env_id:
+                from envs.ant_maze import AntMaze
+                env = AntMaze(
+                    backend="spring",
+                    exclude_current_positions_from_observation=False,
+                    terminate_when_unhealthy=True,
+                    maze_layout_name=env_id[4:]
+                )
 
-            args.obs_dim = 29
-            args.goal_start_idx = 0
-            args.goal_end_idx = 2
+                args.obs_dim = 29
+                args.goal_start_idx = 0
+                args.goal_end_idx = 2
+            else:
+                from envs.ant_maze_generalization import AntMazeGeneralization
+                gen_idx = env_id.find("gen")
+                maze_layout_name = env_id[4:gen_idx-1]
+                generalization_config = env_id[gen_idx+4:]
+                print(f"maze_layout_name: {maze_layout_name}, generalization_config: {generalization_config}", flush=True)
+                env = AntMazeGeneralization(
+                    backend="spring",
+                    exclude_current_positions_from_observation=False,
+                    terminate_when_unhealthy=True,
+                    maze_layout_name=maze_layout_name,
+                    generalization_config=generalization_config
+                )
+
+                args.obs_dim = 29
+                args.goal_start_idx = 0
+                args.goal_end_idx = 2
         
         elif env_id == "ant_ball":
             from envs.ant_ball import AntBall
