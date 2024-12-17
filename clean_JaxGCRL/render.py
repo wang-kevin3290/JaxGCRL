@@ -143,15 +143,15 @@ from flax.linen.initializers import variance_scaling
 from datetime import datetime
 import wandb
 
-eval_env_id = 'arm_push_hard'
+eval_env_id = 'ant'
 actor_network_width = 256
-actor_network_depth = 64
-actor_skip_connections = 4
+actor_network_depth = 4
+actor_skip_connections = 0
 actor_use_relu = 0
-save_path = './runs/arm_push_hard_118_20241130-145820'
+save_path = './runs/ant_298_20241212-181643'
 vis_length = 1000
-num_rollouts = 10
-send_wandb = True
+num_rollouts = 1
+send_wandb = False
 wandb_run_id = "vnwk2iz8"
 
 
