@@ -64,6 +64,12 @@ class ArmEnvs(PipelineEnv):
             action = self._convert_action_to_actuator_input_joint_angle(action, arm_angles, delta_control=False)
         
         pipeline_state = self.pipeline_step(pipeline_state0, action)
+        
+        #ADDING THIS HERE BASED ON MICHAL'S BUG FIX
+        if "steps" in state.info.keys():
+            seed = state.info["seed"] + jnp.where(state.info["steps"], 0, 1)
+        else:
+            seed = state.info["seed"]
                 
         # Compute variables for state update, including observation and goal/reward
         timestep = state.info["timestep"] + 1 / self.episode_length
@@ -74,7 +80,11 @@ class ArmEnvs(PipelineEnv):
         
         reward = success
         done = 0.0
-        info = {**state.info, "timestep": timestep}
+        # info = {**state.info, "timestep": timestep}
+        #ADDING THIS HERE BASED ON MICHAL'S BUG FIX
+        info = {**state.info, "timestep": timestep, "seed": seed}
+
+        
         
         new_state = state.replace(pipeline_state=pipeline_state, obs=obs, reward=reward, done=done, info=info)
         
