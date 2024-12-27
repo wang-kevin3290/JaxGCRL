@@ -120,6 +120,8 @@ class Args:
     
     resnet: str = "noishmistake4_nodense"
     
+    num_render: int = 10
+    
     
     
     # to be filled in runtime
@@ -1226,7 +1228,7 @@ if __name__ == "__main__":
                 return next_state, env_state  # Return current state for visualization
             
             rollout_states = []
-            for i in range(10):
+            for i in range(args.num_render):
                 # env = Humanoid(backend=None or "spring")
                 # if args.eval_env_id:
                 #     env = make_env(args.eval_env_id)
