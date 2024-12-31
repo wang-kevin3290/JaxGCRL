@@ -122,7 +122,7 @@ class Args:
     
     num_render: int = 10
     
-    dropout: str = "test"
+    dropout: float = 0.0
     
     
     
@@ -143,19 +143,19 @@ def residual_block(x, width, normalize, activation, training):
     x = nn.Dense(width, kernel_init=lecun_unfirom, bias_init=bias_init)(x)
     x = normalize(x)
     x = activation(x)
-    x = nn.Dropout(rate=0.5, deterministic=not training)(x)
+    x = nn.Dropout(rate=args.dropout, deterministic=not training)(x)
     x = nn.Dense(width, kernel_init=lecun_unfirom, bias_init=bias_init)(x)
     x = normalize(x)
     x = activation(x)
-    x = nn.Dropout(rate=0.5, deterministic=not training)(x)
+    x = nn.Dropout(rate=args.dropout, deterministic=not training)(x)
     x = nn.Dense(width, kernel_init=lecun_unfirom, bias_init=bias_init)(x)
     x = normalize(x)
     x = activation(x)
-    x = nn.Dropout(rate=0.5, deterministic=not training)(x)
+    x = nn.Dropout(rate=args.dropout, deterministic=not training)(x)
     x = nn.Dense(width, kernel_init=lecun_unfirom, bias_init=bias_init)(x)
     x = normalize(x)
     x = activation(x)
-    x = nn.Dropout(rate=0.5, deterministic=not training)(x)
+    x = nn.Dropout(rate=args.dropout, deterministic=not training)(x)
     x = x + identity
     return x
 
@@ -186,7 +186,7 @@ class SA_encoder(nn.Module):
         x = nn.Dense(self.network_width, kernel_init=lecun_unfirom, bias_init=bias_init)(x)
         x = normalize(x)
         x = activation(x)
-        x = nn.Dropout(rate=0.5, deterministic=not training)(x)
+        x = nn.Dropout(rate=args.dropout, deterministic=not training)(x)
         #Residual blocks
         for i in range(self.network_depth // 4):
             x = residual_block(x, self.network_width, normalize, activation, training)
@@ -221,7 +221,7 @@ class G_encoder(nn.Module):
         x = nn.Dense(self.network_width, kernel_init=lecun_unfirom, bias_init=bias_init)(x)
         x = normalize(x)
         x = activation(x)
-        x = nn.Dropout(rate=0.5, deterministic=not training)(x)
+        x = nn.Dropout(rate=args.dropout, deterministic=not training)(x)
         #Residual blocks
         for i in range(self.network_depth // 4):
             x = residual_block(x, self.network_width, normalize, activation, training)
@@ -283,7 +283,7 @@ class Actor(nn.Module):
         x = nn.Dense(self.network_width, kernel_init=lecun_unfirom, bias_init=bias_init)(x)
         x = normalize(x)
         x = activation(x)
-        x = nn.Dropout(rate=0.5, deterministic=not training)(x)
+        x = nn.Dropout(rate=args.dropout, deterministic=not training)(x)
         #Residual blocks
         for i in range(self.network_depth // 4):
             x = residual_block(x, self.network_width, normalize, activation, training)
