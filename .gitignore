@@ -313,6 +313,7 @@ container.sif
 container.dif
 __pycache__
 wandb/
+*/wandb/
 params/
 runs/
 
@@ -321,6 +322,19 @@ runs/
 **/slurm-*.out
 **/slurm-*.err
 **/*.slurm
+# Slurm logs
+slurm_logs/
+*/slurm_logs/
+# Diff files
+*.diff
+
+# Renders and visualization
+renders/
+vis/
+*.html
+
+# Environment
+expl-env/
 
 # Other stuff
 **/scripts/*.sh
