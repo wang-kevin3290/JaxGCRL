@@ -478,7 +478,7 @@ if __name__ == "__main__":
             wandb_osh.set_log_level("ERROR")
             trigger_sync = TriggerWandbSyncHook()
         
-    if args.checkpoint:
+    if args.checkpoint or args.capture_vis:
         from pathlib import Path
         from datetime import datetime
         
