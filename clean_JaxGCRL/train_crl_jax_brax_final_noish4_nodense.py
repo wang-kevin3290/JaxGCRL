@@ -1194,10 +1194,11 @@ if __name__ == "__main__":
         print(f"epoch {ne} out of {args.num_epochs} complete. metrics: {metrics}", flush=True)
 
         if args.checkpoint:
-            # Save current policy and critic params.
-            params = (training_state.alpha_state.params, training_state.actor_state.params, training_state.critic_state.params)
-            path = f"{save_path}/step_{int(training_state.env_steps)}.pkl"
-            save_params(path, params)
+            if ne < 5 or ne >= args.num_epochs - 5 or ne % 10 == 0:
+                # Save current policy and critic params.
+                params = (training_state.alpha_state.params, training_state.actor_state.params, training_state.critic_state.params)
+                path = f"{save_path}/step_{int(training_state.env_steps)}.pkl"
+                save_params(path, params)
         
         if args.track:
             wandb.log(metrics, step=ne)
