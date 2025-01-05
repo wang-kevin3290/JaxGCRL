@@ -62,6 +62,8 @@ def main(args):
         seed=args.seed,
         eval_env=eval_env,
         config=config,
+        h_dim=args.h_dim,
+        n_hidden=args.n_hidden
     )
 
     metrics_to_collect = [

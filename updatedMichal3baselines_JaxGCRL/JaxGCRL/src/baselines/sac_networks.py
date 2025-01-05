@@ -1,22 +1,41 @@
-"""TD3 networks."""
+# Copyright 2024 The Brax Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 
-from typing import Sequence, Tuple
+"""SAC networks."""
 
-import jax.numpy as jnp
+from typing import Sequence, Tuple, Callable, NamedTuple, Any
+
+import jax
+from brax.training import distribution
 from brax.training import networks
 from brax.training import types
-from brax.training.networks import ActivationFn, FeedForwardNetwork, Initializer, MLP
 from brax.training.types import PRNGKey
-from flax import linen, struct
-import jax
+import flax
+from flax import linen
+import jax.numpy as jnp
 from flax.linen.initializers import variance_scaling
 
+ActivationFn = Callable[[jnp.ndarray], jnp.ndarray]
+Initializer = Callable[..., Any]
 
-@struct.dataclass
-class TD3Networks:
-    policy_network: networks.FeedForwardNetwork
-    q_network: networks.FeedForwardNetwork
-    
+
+@flax.struct.dataclass
+class SACNetworks:
+  policy_network: networks.FeedForwardNetwork
+  q_network: networks.FeedForwardNetwork
+  parametric_action_distribution: distribution.ParametricDistribution
+  
 class MLP(linen.Module):
     """MLP module."""
 
@@ -88,57 +107,8 @@ class MLPCleanJax(linen.Module):
         
         x = linen.Dense(self.output_size, kernel_init=lecun_unfirom, bias_init=bias_init)(x)
         return x
-
-
-def make_inference_fn(td3_networks: TD3Networks):
-    """Creates params and inference function for the TD3 agent."""
-
-    def make_policy(params: types.PolicyParams, exploration_noise=0.0, noise_clip=0.0, deterministic=False) -> types.Policy:
-        def policy(observations: types.Observation,
-                   key_noise: PRNGKey) -> Tuple[types.Action, types.Extra]:
-            actions = td3_networks.policy_network.apply(*params, observations)
-            noise = (jax.random.normal(key_noise, actions.shape) * exploration_noise).clip(-noise_clip, noise_clip)
-            return actions + noise, {}
-
-        return policy
-
-    return make_policy
-
-
-def make_policy_network(
-        param_size: int,
-        obs_size: int,
-        preprocess_observations_fn: types.PreprocessObservationFn = types
-        .identity_observation_preprocessor,
-        hidden_layer_sizes: Sequence[int] = (256, 256),
-        activation: ActivationFn = linen.relu,
-        kernel_init: Initializer = jax.nn.initializers.lecun_uniform(),
-        layer_norm: bool = False,
-        skip_connections: int = 4,
-        clean_jax_arch: bool = True) -> FeedForwardNetwork:
-    """Creates a policy network."""
     
-    if not clean_jax_arch:
-        policy_module = MLP(
-            layer_sizes=list(hidden_layer_sizes) + [param_size],
-            activation=activation,
-            kernel_init=kernel_init,
-            layer_norm=layer_norm)
-    else:
-        policy_module = MLPCleanJax(
-            network_width=hidden_layer_sizes[0],
-            network_depth=len(hidden_layer_sizes) - 1,
-            output_size=param_size,
-            skip_connections=skip_connections)
-
-    def apply(processor_params, policy_params, obs):
-        obs = preprocess_observations_fn(obs, processor_params)
-        raw_actions = policy_module.apply(policy_params, obs)
-        return linen.tanh(raw_actions)
-
-    dummy_obs = jnp.zeros((1, obs_size))
-    return FeedForwardNetwork(init=lambda key: policy_module.init(key, dummy_obs), apply=apply)
-
+    
 def make_q_network(
     obs_size: int,
     action_size: int,
@@ -147,7 +117,7 @@ def make_q_network(
     hidden_layer_sizes: Sequence[int] = (256, 256),
     activation: ActivationFn = linen.relu,
     n_critics: int = 2,
-    skip_connections: int = 4,
+    skip_connections: int = 0,
     clean_jax_arch: bool = False) -> networks.FeedForwardNetwork:
   """Creates a value network."""
 
@@ -178,37 +148,83 @@ def make_q_network(
   dummy_action = jnp.zeros((1, action_size))
   return networks.FeedForwardNetwork(
       init=lambda key: q_module.init(key, dummy_obs, dummy_action), apply=apply)
+  
+def make_policy_network(
+    param_size: int,
+    obs_size: int,
+    preprocess_observations_fn: types.PreprocessObservationFn = types
+    .identity_observation_preprocessor,
+    hidden_layer_sizes: Sequence[int] = (256, 256),
+    activation: ActivationFn = linen.relu,
+    kernel_init: Initializer = jax.nn.initializers.lecun_uniform(),
+    layer_norm: bool = False,
+    skip_connections: int = 4,
+    clean_jax_arch: bool = False) -> networks.FeedForwardNetwork:
+  """Creates a policy network."""
+  if not clean_jax_arch:
+    policy_module = MLP(layer_sizes=list(hidden_layer_sizes) + [param_size], activation=activation, kernel_init=kernel_init, use_layer_norm=layer_norm, skip_connections=skip_connections)
+  else:
+    assert all(layer_size == hidden_layer_sizes[0] for layer_size in hidden_layer_sizes[:-1]), "All layers except the last must be the same size"
+    policy_module = MLPCleanJax(network_width=hidden_layer_sizes[0], network_depth=len(hidden_layer_sizes) - 1, output_size=param_size, skip_connections=skip_connections)
+
+  def apply(processor_params, policy_params, obs):
+    obs = preprocess_observations_fn(obs, processor_params)
+    return policy_module.apply(policy_params, obs)
+
+  dummy_obs = jnp.zeros((1, obs_size))
+  return networks.FeedForwardNetwork(
+      init=lambda key: policy_module.init(key, dummy_obs), apply=apply)
 
 
-def make_td3_networks(
-        observation_size: int,
-        action_size: int,
-        preprocess_observations_fn: types.PreprocessObservationFn = types
-        .identity_observation_preprocessor,
-        hidden_layer_sizes: Sequence[int] = (256, 256),
-        activation: networks.ActivationFn = linen.relu,
-        skip_connections: int = 4,
-        clean_jax_arch: bool = True) -> TD3Networks:
-    """Make TD3 networks."""
-    policy_network = make_policy_network(
-        action_size,
-        observation_size,
-        preprocess_observations_fn=preprocess_observations_fn,
-        hidden_layer_sizes=hidden_layer_sizes,
-        activation=activation,
-        skip_connections=skip_connections,
-        clean_jax_arch=clean_jax_arch
-    )
+def make_inference_fn(sac_networks: SACNetworks):
+  """Creates params and inference function for the SAC agent."""
 
-    q_network = make_q_network(
-        observation_size,
-        action_size,
-        preprocess_observations_fn=preprocess_observations_fn,
-        hidden_layer_sizes=hidden_layer_sizes,
-        activation=activation)
+  def make_policy(params: types.PolicyParams,
+                  deterministic: bool = False) -> types.Policy:
 
-    return TD3Networks(
-        policy_network=policy_network,
-        q_network=q_network)
+    def policy(observations: types.Observation,
+               key_sample: PRNGKey) -> Tuple[types.Action, types.Extra]:
+      logits = sac_networks.policy_network.apply(*params, observations)
+      if deterministic:
+        return sac_networks.parametric_action_distribution.mode(logits), {}
+      return sac_networks.parametric_action_distribution.sample(
+          logits, key_sample), {}
+
+    return policy
+
+  return make_policy
 
 
+def make_sac_networks(
+    observation_size: int,
+    action_size: int,
+    preprocess_observations_fn: types.PreprocessObservationFn = types
+    .identity_observation_preprocessor,
+    hidden_layer_sizes: Sequence[int] = (256, 256),
+    activation: networks.ActivationFn = linen.relu,
+    skip_connections: int = 4,
+    clean_jax_arch: bool = True) -> SACNetworks:
+  """Make SAC networks."""
+  parametric_action_distribution = distribution.NormalTanhDistribution(
+      event_size=action_size)
+  policy_network = make_policy_network(
+      parametric_action_distribution.param_size,
+      observation_size,
+      preprocess_observations_fn=preprocess_observations_fn,
+      hidden_layer_sizes=hidden_layer_sizes,
+      activation=activation,
+      skip_connections=skip_connections,
+      clean_jax_arch=clean_jax_arch)
+  q_network = make_q_network(
+      observation_size,
+      action_size,
+      preprocess_observations_fn=preprocess_observations_fn,
+      hidden_layer_sizes=hidden_layer_sizes,
+      activation=activation,
+      skip_connections=skip_connections,
+      clean_jax_arch=clean_jax_arch)
+  return SACNetworks(
+      policy_network=policy_network,
+      q_network=q_network,
+      parametric_action_distribution=parametric_action_distribution)
+  

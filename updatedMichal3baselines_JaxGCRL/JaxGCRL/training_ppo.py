@@ -68,7 +68,9 @@ def main(args):
         gae_lambda=0.95,
         max_devices_per_host=1,
         seed=args.seed,
-        eval_env=eval_env
+        eval_env=eval_env,
+        h_dim=args.h_dim,
+        n_hidden=args.n_hidden
     )
 
     metrics_to_collect = [

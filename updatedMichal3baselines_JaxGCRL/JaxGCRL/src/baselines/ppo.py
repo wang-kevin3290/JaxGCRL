@@ -31,7 +31,8 @@ from brax.training import types
 from brax.training.acme import running_statistics
 from brax.training.acme import specs
 from brax.training.agents.ppo import losses as ppo_losses
-from brax.training.agents.ppo import networks as ppo_networks
+# from brax.training.agents.ppo import networks as ppo_networks
+from src.baselines import ppo_networks
 from brax.training.types import Params
 from brax.training.types import PRNGKey
 from brax.v1 import envs as envs_v1
@@ -110,6 +111,8 @@ def train(
     ] = None,
     restore_checkpoint_path: Optional[str] = None,
     visualization_interval: int = 5,
+    h_dim: int = 256,
+    n_hidden: int = 4,
 ):
   """PPO training.
 
@@ -242,7 +245,9 @@ def train(
   ppo_network = network_factory(
       env_state.obs.shape[-1],
       env.action_size,
-      preprocess_observations_fn=normalize)
+      preprocess_observations_fn=normalize,
+      policy_hidden_layer_sizes=[h_dim] * (5*(n_hidden // 4)),
+      value_hidden_layer_sizes=[h_dim//4] * n_hidden)
   make_policy = ppo_networks.make_inference_fn(ppo_network)
 
   optimizer = optax.adam(learning_rate=learning_rate)

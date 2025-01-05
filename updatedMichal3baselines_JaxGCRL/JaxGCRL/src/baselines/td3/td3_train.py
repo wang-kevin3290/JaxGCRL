@@ -268,6 +268,8 @@ def train(
     exploration_noise: float = 0.4,
     randomization_fn: Optional[Callable[[base.System, jnp.ndarray], Tuple[base.System, base.System]]] = None,
     visualization_interval: int = 5,
+    h_dim: int = 256,
+    n_hidden: int = 4,
 ):
     """TD3 training."""
     process_id = jax.process_index()
@@ -329,7 +331,7 @@ def train(
     if normalize_observations:
         normalize_fn = running_statistics.normalize
     td3_network = network_factory(
-        observation_size=obs_size, action_size=action_size, preprocess_observations_fn=normalize_fn
+        observation_size=obs_size, action_size=action_size, preprocess_observations_fn=normalize_fn, hidden_layer_sizes=[h_dim] * n_hidden
     )
     make_policy = td3_networks.make_inference_fn(td3_network)
 

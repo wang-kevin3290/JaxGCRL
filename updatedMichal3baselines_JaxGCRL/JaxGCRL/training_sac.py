@@ -61,7 +61,9 @@ def main(args):
         max_replay_size=args.max_replay_size,
         min_replay_size=args.min_replay_size,
         seed=args.seed,
-        eval_env=eval_env
+        eval_env=eval_env,
+        h_dim=args.h_dim,
+        n_hidden=args.n_hidden
     )
 
     metrics_to_collect = [
