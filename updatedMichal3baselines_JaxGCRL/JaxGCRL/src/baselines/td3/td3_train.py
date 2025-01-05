@@ -687,6 +687,7 @@ def train(
 
     current_step = 0
     for eval_epoch_num in range(num_evals_after_init):
+        print(f"iteration {eval_epoch_num} out of {num_evals_after_init}", flush=True)
         logging.info("step %s", current_step)
 
         # Optimization

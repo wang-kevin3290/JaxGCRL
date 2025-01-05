@@ -23,7 +23,7 @@ from flax.linen.initializers import variance_scaling
 from brax.io import html
 
 from evaluator import CrlEvaluator
-from buffer import TrajectoryUniformSamplingQueue
+# from buffer import TrajectoryUniformSamplingQueue #comment out CRL buffer
 from memory_bank import MemoryBank, MemoryBankState
 
 @dataclass
@@ -118,12 +118,6 @@ class Args:
     
     use_relu: int = 0
     
-    resnet: str = "noishmistake4_nodense"
-    
-    num_render: int = 10
-    
-    save_buffer: int = 1
-    
     
     
     # to be filled in runtime
@@ -136,116 +130,42 @@ class Args:
     num_training_steps_per_epoch : int = 0
     """the number of training steps per epoch(computed in runtime)"""
 
-lecun_unfirom = variance_scaling(1/3, "fan_in", "uniform")
-bias_init = nn.initializers.zeros
-def residual_block(x, width, normalize, activation):
-    identity = x
-    x = nn.Dense(width, kernel_init=lecun_unfirom, bias_init=bias_init)(x)
-    x = normalize(x)
-    x = activation(x)
-    x = nn.Dense(width, kernel_init=lecun_unfirom, bias_init=bias_init)(x)
-    x = normalize(x)
-    x = activation(x)
-    x = nn.Dense(width, kernel_init=lecun_unfirom, bias_init=bias_init)(x)
-    x = normalize(x)
-    x = activation(x)
-    x = nn.Dense(width, kernel_init=lecun_unfirom, bias_init=bias_init)(x)
-    x = normalize(x)
-    x = activation(x)
-    x = x + identity
-    return x
-
-class SA_encoder(nn.Module):
+# s, a -> q (but actually we are going to maintain two networks, q1 and q2 at the same time)
+class QModule(nn.Module):
     norm_type = "layer_norm"
     network_width: int = 1024
     network_depth: int = 4
     skip_connections: int = 0
     use_relu: int = 0
+    n_critics: int = 2
     @nn.compact
     def __call__(self, s: jnp.ndarray, a: jnp.ndarray):
-
         lecun_unfirom = variance_scaling(1/3, "fan_in", "uniform")
         bias_init = nn.initializers.zeros
         
-        if self.norm_type == "layer_norm":
-            normalize = lambda x: nn.LayerNorm()(x)
-        else:
-            normalize = lambda x: x
+        normalize = lambda x: nn.LayerNorm()(x) if self.norm_type == "layer_norm" else x
+        activation = nn.relu if self.use_relu else nn.swish
         
-        if self.use_relu:
-            activation = nn.relu
-        else:
-            activation = nn.swish
-            
-        x = jnp.concatenate([s, a], axis=-1)
-        #Initial layer
-        x = nn.Dense(self.network_width, kernel_init=lecun_unfirom, bias_init=bias_init)(x)
-        x = normalize(x)
-        x = activation(x)
-        #Residual blocks
-        for i in range(self.network_depth // 4):
-            x = residual_block(x, self.network_width, normalize, activation)
-        #Final layer
-        x = nn.Dense(64, kernel_init=lecun_unfirom, bias_init=bias_init)(x)
-        return x
-    
-class G_encoder(nn.Module):
-    norm_type = "layer_norm"
-    network_width: int = 1024
-    network_depth: int = 4
-    skip_connections: int = 0
-    use_relu: int = 0
-    @nn.compact
-    def __call__(self, g: jnp.ndarray):
-
-        lecun_unfirom = variance_scaling(1/3, "fan_in", "uniform")
-        bias_init = nn.initializers.zeros
-
-        if self.norm_type == "layer_norm":
-            normalize = lambda x: nn.LayerNorm()(x)
-        else:
-            normalize = lambda x: x
+        res = []
+        for i in range(self.n_critics):
+            x = jnp.concatenate([s, a], axis=-1)
+            for i in range(self.network_depth):
+                x = nn.Dense(self.network_width, kernel_init=lecun_unfirom, bias_init=bias_init)(x)
+                x = normalize(x)
+                x = activation(x)
+                
+                if self.skip_connections:
+                    if i == 0:
+                        skip = x
+                    if i > 0 and i % self.skip_connections == 0:
+                        x = x + skip
+                        skip = x
         
-        if self.use_relu:
-            activation = nn.relu
-        else:
-            activation = nn.swish
-        
-        x = g
-        #Initial layer
-        x = nn.Dense(self.network_width, kernel_init=lecun_unfirom, bias_init=bias_init)(x)
-        x = normalize(x)
-        x = activation(x)
-        #Residual blocks
-        for i in range(self.network_depth // 4):
-            x = residual_block(x, self.network_width, normalize, activation)
-        #Final layer
-        x = nn.Dense(64, kernel_init=lecun_unfirom, bias_init=bias_init)(x)
-        return x
+            q = nn.Dense(1, kernel_init=lecun_unfirom, bias_init=bias_init)(x)
+            res.append(q)
+        return res
 
-
-class Sym(nn.Module):
-    dim_hidden: int = 176  # First hidden layer dimension, 176 based off the paper
-    dim_embed: int = 64    # Final output size
-
-    @nn.compact
-    def __call__(self, x: jnp.ndarray):
-        x = nn.Dense(self.dim_hidden)(x)  # First hidden layer (176 units)
-        x = nn.relu(x)  # ReLU activation
-        x = nn.Dense(self.dim_embed)(x)  # Final embedding layer (64 units)
-        return x
-
-class Asym(nn.Module):
-    dim_hidden: int = 176  # First hidden layer dimension
-    dim_embed: int = 64    # Final output size
-
-    @nn.compact
-    def __call__(self, x: jnp.ndarray):
-        x = nn.Dense(self.dim_hidden)(x)  # First hidden layer (176 units)
-        x = nn.relu(x)  # ReLU activation
-        x = nn.Dense(self.dim_embed)(x)  # Final embedding layer (64 units)
-        return x
-  
+# s -> a (remains the same as before)
 class Actor(nn.Module):
     action_size: int
     norm_type = "layer_norm"
@@ -273,15 +193,17 @@ class Actor(nn.Module):
         
         print(f"x.shape: {x.shape}", flush=True)
 
-        #Initial layer
-        x = nn.Dense(self.network_width, kernel_init=lecun_unfirom, bias_init=bias_init)(x)
-        x = normalize(x)
-        x = activation(x)
-        #Residual blocks
-        for i in range(self.network_depth // 4):
-            x = residual_block(x, self.network_width, normalize, activation)
-        #Final layer
-        # x = nn.Dense(64, kernel_init=lecun_unfirom, bias_init=bias_init)(x)
+        for i in range(self.network_depth):
+            x = nn.Dense(self.network_width, kernel_init=lecun_unfirom, bias_init=bias_init)(x)
+            x = normalize(x)
+            x = activation(x)
+            
+            if self.skip_connections:
+                if i == 0:
+                    skip = x
+                if i > 0 and i % self.skip_connections == 0:
+                    x = x + skip
+                    skip = x
 
         mean = nn.Dense(self.action_size, kernel_init=lecun_unfirom, bias_init=bias_init)(x)
         log_std = nn.Dense(self.action_size, kernel_init=lecun_unfirom, bias_init=bias_init)(x)
@@ -346,7 +268,7 @@ if __name__ == "__main__":
         args.critic_network_width = args.network_width
         args.actor_network_width = args.network_width
     
-    run_name = f"{args.env_id}{'_' + args.eval_env_id if args.eval_env_id else ''}_{args.batch_size}_critbx:{args.critic_batch_size_multiplier}_actbx:{args.actor_batch_size_multiplier}_batchdiv2:{args.batchdiv2}_{args.total_env_steps}_nenvs:{args.num_envs}_criticwidth:{args.critic_network_width}_actorwidth:{args.actor_network_width}_criticdepth:{args.critic_depth}_actordepth:{args.actor_depth}_actorskip:{args.actor_skip_connections}_criticskip:{args.critic_skip_connections}_epspenv:{args.num_episodes_per_env}_trainmult:{args.training_steps_multiplier}_mrn:{args.mrn}_memorybank:{args.memory_bank}_sgdbatchesptrainstep:{args.num_sgd_batches_per_training_step}_useallbatches:{args.use_all_batches}_eplen:{args.episode_length}_maxbuffersize:{args.max_replay_size}_evalactor:{args.eval_actor}_explactor:{args.expl_actor}_vislen:{args.vis_length}_critlr:{args.critic_lr}_actlr:{args.actor_lr}_alplr:{args.alpha_lr}_entropy:{args.entropy_param}_disable_entropy:{args.disable_entropy}_relu:{args.use_relu}_resnet:{args.resnet}_{args.seed}"
+    run_name = f"{args.env_id}{'_' + args.eval_env_id if args.eval_env_id else ''}_{args.batch_size}_critbx:{args.critic_batch_size_multiplier}_actbx:{args.actor_batch_size_multiplier}_batchdiv2:{args.batchdiv2}_{args.total_env_steps}_nenvs:{args.num_envs}_criticwidth:{args.critic_network_width}_actorwidth:{args.actor_network_width}_criticdepth:{args.critic_depth}_actordepth:{args.actor_depth}_actorskip:{args.actor_skip_connections}_criticskip:{args.critic_skip_connections}_epspenv:{args.num_episodes_per_env}_trainmult:{args.training_steps_multiplier}_mrn:{args.mrn}_memorybank:{args.memory_bank}_sgdbatchesptrainstep:{args.num_sgd_batches_per_training_step}_useallbatches:{args.use_all_batches}_eplen:{args.episode_length}_maxbuffersize:{args.max_replay_size}_evalactor:{args.eval_actor}_explactor:{args.expl_actor}_vislen:{args.vis_length}_critlr:{args.critic_lr}_actlr:{args.actor_lr}_alplr:{args.alpha_lr}_entropy:{args.entropy_param}_disable_entropy:{args.disable_entropy}_relu:{args.use_relu}_{args.seed}"
     print(f"run_name: {run_name}", flush=True)
     
     if args.track:
@@ -380,7 +302,7 @@ if __name__ == "__main__":
     random.seed(args.seed)
     np.random.seed(args.seed)
     key = jax.random.PRNGKey(args.seed)
-    key, buffer_key, env_key, eval_env_key, actor_key, sa_key, g_key, sym_key, asym_key, memory_bank_key = jax.random.split(key, 10)
+    key, buffer_key, env_key, eval_env_key, actor_key, q_key, memory_bank_key = jax.random.split(key, 7) #CHANGE THIS
 
 
     def make_env(env_id=args.env_id):
@@ -414,35 +336,17 @@ if __name__ == "__main__":
             args.goal_end_idx = 2
 
         elif "ant" in env_id and "maze" in env_id: #needed the add the ant check to differentiate with humanoid maze
-            if "gen" not in env_id:
-                from envs.ant_maze import AntMaze
-                env = AntMaze(
-                    backend="spring",
-                    exclude_current_positions_from_observation=False,
-                    terminate_when_unhealthy=True,
-                    maze_layout_name=env_id[4:]
-                )
+            from envs.ant_maze import AntMaze
+            env = AntMaze(
+                backend="spring",
+                exclude_current_positions_from_observation=False,
+                terminate_when_unhealthy=True,
+                maze_layout_name=env_id[4:]
+            )
 
-                args.obs_dim = 29
-                args.goal_start_idx = 0
-                args.goal_end_idx = 2
-            else:
-                from envs.ant_maze_generalization import AntMazeGeneralization
-                gen_idx = env_id.find("gen")
-                maze_layout_name = env_id[4:gen_idx-1]
-                generalization_config = env_id[gen_idx+4:]
-                print(f"maze_layout_name: {maze_layout_name}, generalization_config: {generalization_config}", flush=True)
-                env = AntMazeGeneralization(
-                    backend="spring",
-                    exclude_current_positions_from_observation=False,
-                    terminate_when_unhealthy=True,
-                    maze_layout_name=maze_layout_name,
-                    generalization_config=generalization_config
-                )
-
-                args.obs_dim = 29
-                args.goal_start_idx = 0
-                args.goal_end_idx = 2
+            args.obs_dim = 29
+            args.goal_start_idx = 0
+            args.goal_end_idx = 2
         
         elif env_id == "ant_ball":
             from envs.ant_ball import AntBall
@@ -606,38 +510,17 @@ if __name__ == "__main__":
         tx=optax.adam(learning_rate=args.actor_lr)
     )
 
-    # Critic
-    sa_encoder = SA_encoder(network_width=args.critic_network_width, network_depth=args.critic_depth, skip_connections=args.critic_skip_connections, use_relu=args.use_relu)
-    sa_encoder_params = sa_encoder.init(sa_key, np.ones([1, args.obs_dim]), np.ones([1, action_size]))
-    g_encoder = G_encoder(network_width=args.critic_network_width, network_depth=args.critic_depth, skip_connections=args.critic_skip_connections, use_relu=args.use_relu)
-    g_encoder_params = g_encoder.init(g_key, np.ones([1, args.goal_end_idx - args.goal_start_idx]))
-    # c = jnp.asarray(0.0, dtype=jnp.float32) (NOT USED IN CODE, WHATS THIS)
+    # Replace Critic with QModule
+    q_network = QModule(network_width=args.critic_network_width, network_depth=args.critic_depth, skip_connections=args.critic_skip_connections, use_relu=args.use_relu)
+    q_params = q_network.init(q_key, np.ones([1, args.obs_dim]), np.ones([1, action_size]))
+    target_q_params = jax.tree_util.tree_map(lambda x: x.copy(), q_params) # copy params to target_q_params
     
-    sym = Sym()
-    sym_params = sym.init(sym_key, np.ones([1, 64]))
-    asym = Asym()
-    asym_params = asym.init(asym_key, np.ones([1, 64]))
-    
-    
-    if not args.mrn:
-        critic_state = TrainState.create(
-            apply_fn=None,
-            params={
-                "sa_encoder": sa_encoder_params, 
-                "g_encoder": g_encoder_params
-                },
-            tx=optax.adam(learning_rate=args.critic_lr),
-        )
-    else:
-        critic_state = TrainState.create(
-            apply_fn=None,
-            params={
-                "sa_encoder": sa_encoder_params, 
-                "g_encoder": g_encoder_params,
-                "sym": sym_params,
-                "asym": asym_params},
-            tx=optax.adam(learning_rate=args.critic_lr),
-        )
+    q_state = TrainState.create(
+        apply_fn=q_network.apply,
+        params=q_params,
+        target_params=target_q_params,
+        tx=optax.adam(learning_rate=args.critic_lr),
+    )
 
     # Entropy coefficient
     target_entropy = -args.entropy_param * action_size # action_size = 8 for ant, 17 for humanoid, etc # USEED TO BE -0.5 * action_size
@@ -664,7 +547,7 @@ if __name__ == "__main__":
         env_steps=jnp.zeros(()),
         gradient_steps=jnp.zeros(()),
         actor_state=actor_state,
-        critic_state=critic_state,
+        q_state=q_state,
         alpha_state=alpha_state,
         memory_bank_state=memory_bank_state,
     )
@@ -690,6 +573,97 @@ if __name__ == "__main__":
         buffer.insert_internal = jax.jit(buffer.insert_internal)
         buffer.sample_internal = jax.jit(buffer.sample_internal)
         return buffer
+    
+    
+    # We add the SAC replay buffer here
+    class TrajectoryUniformSamplingQueue(QueueBase[Sample], Generic[Sample]):
+    """Implements an uniform sampling limited-size replay queue BUT WITH TRAJECTORIES."""
+
+    def sample_internal(self, buffer_state: ReplayBufferState) -> Tuple[ReplayBufferState, Sample]:
+        if buffer_state.data.shape != self._data_shape:
+            raise ValueError(
+                f"Data shape expected by the replay buffer ({self._data_shape}) does "
+                f"not match the shape of the buffer state ({buffer_state.data.shape})"
+            )
+        key, sample_key, shuffle_key = jax.random.split(buffer_state.key, 3)
+        # NOTE: this is the number of envs to sample but it can be modified if there is OOM
+        shape = self.num_envs
+
+        # Sampling envs idxs
+        envs_idxs = jax.random.choice(sample_key, jnp.arange(self.num_envs), shape=(shape,), replace=False)
+
+        @functools.partial(jax.jit, static_argnames=("rows", "cols"))
+        def create_matrix(rows, cols, min_val, max_val, rng_key):
+            rng_key, subkey = jax.random.split(rng_key)
+            start_values = jax.random.randint(subkey, shape=(rows,), minval=min_val, maxval=max_val)
+            row_indices = jnp.arange(cols)
+            matrix = start_values[:, jnp.newaxis] + row_indices
+            return matrix
+
+        @jax.jit
+        def create_batch(arr_2d, indices):
+            return jnp.take(arr_2d, indices, axis=0, mode="wrap")
+
+        create_batch_vmaped = jax.vmap(create_batch, in_axes=(1, 0))
+
+        matrix = create_matrix(
+            shape,
+            self.episode_length,
+            buffer_state.sample_position,
+            buffer_state.insert_position - self.episode_length,
+            sample_key,
+        )
+
+        batch = create_batch_vmaped(buffer_state.data[:, envs_idxs, :], matrix)
+        transitions = self._unflatten_fn(batch)
+        return buffer_state.replace(key=key), transitions
+
+    @staticmethod
+    @functools.partial(jax.jit, static_argnames=["config", "env"])
+    def flatten_crl_fn(config, env, transition: Transition, sample_key: PRNGKey) -> Transition:
+        if config.use_her:
+            # Find truncation indexes if present
+            seq_len = transition.observation.shape[0]
+            arrangement = jnp.arange(seq_len)
+            is_future_mask = jnp.array(arrangement[:, None] < arrangement[None], dtype=jnp.float32)
+            single_trajectories = jnp.concatenate(
+                [transition.extras["state_extras"]["seed"][:, jnp.newaxis].T] * seq_len, axis=0
+            )
+
+            # final_step_mask.shape == (seq_len, seq_len)
+            final_step_mask = is_future_mask * jnp.equal(single_trajectories, single_trajectories.T) + jnp.eye(seq_len) * 1e-5
+            final_step_mask = jnp.logical_and(final_step_mask, transition.extras["state_extras"]["truncation"][None, :])
+            non_zero_columns = jnp.nonzero(final_step_mask, size=seq_len)[1]
+
+            # If final state is not present use original goal (i.e. don't change anything)
+            new_goals_idx = jnp.where(non_zero_columns == 0, arrangement, non_zero_columns)
+            binary_mask = jnp.logical_and(non_zero_columns, non_zero_columns)
+
+            new_goals = (
+                binary_mask[:, None] * transition.observation[new_goals_idx][:, env.goal_indices]
+                + jnp.logical_not(binary_mask)[:, None] * transition.observation[new_goals_idx][:, env.state_dim :]
+            )
+
+            # Transform observation
+            state = transition.observation[:, : env.state_dim]
+            new_obs = jnp.concatenate([state, new_goals], axis=1)
+
+            # Recalculate reward
+            dist = jnp.linalg.norm(new_obs[:, env.state_dim :] - new_obs[:, env.goal_indices], axis=1)
+            new_reward = jnp.array(dist < env.goal_dist, dtype=float)
+
+            # Transform next observation
+            next_state = transition.next_observation[:, : env.state_dim]
+            new_next_obs = jnp.concatenate([next_state, new_goals], axis=1)
+
+            return transition._replace(
+                observation=jnp.squeeze(new_obs),
+                next_observation=jnp.squeeze(new_next_obs),
+                reward=jnp.squeeze(new_reward),
+            )
+
+        return transition
+    
     
     replay_buffer = jit_wrap(
             TrajectoryUniformSamplingQueue(
@@ -836,7 +810,7 @@ if __name__ == "__main__":
             lambda x: x[:actor_batch_size], 
             transitions
         )
-        def actor_loss(actor_params, critic_params, log_alpha, transitions, key):
+        def actor_loss(policy_params: Params, normalizer_params: Any, q_params: Params, alpha: jnp.ndarray, transitions: Transition, key: PRNGKey) -> jnp.ndarray:
             obs = transitions.observation           # expected_shape = batch_size, obs_size + goal_size
             state = obs[:, :args.obs_dim]
             future_state = transitions.extras["future_state"]
@@ -849,19 +823,11 @@ if __name__ == "__main__":
             action = nn.tanh(x_ts)
             log_prob = jax.scipy.stats.norm.logpdf(x_ts, loc=means, scale=stds)
             log_prob -= jnp.log((1 - jnp.square(action)) + 1e-6)
-            log_prob = log_prob.sum(-1)           # dimension = B
-
-            sa_encoder_params, g_encoder_params = critic_params["sa_encoder"], critic_params["g_encoder"]
-            sa_repr = sa_encoder.apply(sa_encoder_params, state, action)
-            g_repr = g_encoder.apply(g_encoder_params, goal)
-
-            qf_pi = -jnp.sqrt(jnp.sum((sa_repr - g_repr) ** 2, axis=-1))
-
-            if args.disable_entropy:
-                actor_loss = -jnp.mean(qf_pi)
-            else:
-                actor_loss = jnp.mean( jnp.exp(log_alpha) * log_prob - (qf_pi) )
-
+            log_prob = log_prob.sum(-1)      
+            
+            q_action = q_network.apply(q_params, state, action)
+            min_q = jnp.min(q_action, axis=-1)
+            actor_loss = jnp.mean(alpha * log_prob - min_q)
             return actor_loss, log_prob
 
         def alpha_loss(alpha_params, log_prob):
@@ -893,7 +859,11 @@ if __name__ == "__main__":
             lambda x: x[:critic_batch_size], 
             transitions
         )
-        def critic_loss(critic_params, transitions, key):
+        def critic_loss(q_params, actor_params, target_q_params, alpha, transitions, key):
+            
+            
+            
+            
             sa_encoder_params, g_encoder_params = critic_params["sa_encoder"], critic_params["g_encoder"]
             
             obs = transitions.observation[:, :args.obs_dim]
@@ -1196,11 +1166,10 @@ if __name__ == "__main__":
         print(f"epoch {ne} out of {args.num_epochs} complete. metrics: {metrics}", flush=True)
 
         if args.checkpoint:
-            if ne < 5 or ne >= args.num_epochs - 5 or ne % 10 == 0:
-                # Save current policy and critic params.
-                params = (training_state.alpha_state.params, training_state.actor_state.params, training_state.critic_state.params)
-                path = f"{save_path}/step_{int(training_state.env_steps)}.pkl"
-                save_params(path, params)
+            # Save current policy and critic params.
+            params = (training_state.alpha_state.params, training_state.actor_state.params, training_state.critic_state.params)
+            path = f"{save_path}/step_{int(training_state.env_steps)}.pkl"
+            save_params(path, params)
         
         if args.track:
             wandb.log(metrics, step=ne)
@@ -1218,32 +1187,6 @@ if __name__ == "__main__":
         path = f"{save_path}/final.pkl"
         save_params(path, params)
         
-        
-    #After training is complete, save the Args
-    if args.checkpoint:
-        with open(f"{save_path}/args.pkl", 'wb') as f:
-            pickle.dump(args, f)
-        print(f"Saved args to {save_path}/args.pkl", flush=True)
-        
-    #After training is complete, save the replay buffer (if save_buffer is 1, this takes a lot of memory)
-    if args.checkpoint:
-        if args.save_buffer:
-            print("Saving final buffer_state and buffer data (everything needed to recreate replay_buffer)...", flush=True)
-            try:
-                buffer_path = f"{save_path}/final_buffer.pkl"
-                buffer_data = {
-                    'buffer_state': buffer_state,
-                    'max_replay_size': args.max_replay_size,
-                    'batch_size': args.batch_size,
-                    'num_envs': args.num_envs,
-                    'episode_length': args.episode_length,
-                }
-                with open(buffer_path, 'wb') as f:
-                    pickle.dump(buffer_data, f)
-                print(f"Saved replay_buffer to {buffer_path}", flush=True)
-            except Exception as e:
-                print(f"Error saving final replay buffer: {e}", flush=True)
-        
     # After training is complete, render the final policy
     if args.capture_vis:
         def render_policy(training_state, save_path):
@@ -1257,7 +1200,7 @@ if __name__ == "__main__":
                 return next_state, env_state  # Return current state for visualization
             
             rollout_states = []
-            for i in range(args.num_render):
+            for i in range(10):
                 # env = Humanoid(backend=None or "spring")
                 # if args.eval_env_id:
                 #     env = make_env(args.eval_env_id)

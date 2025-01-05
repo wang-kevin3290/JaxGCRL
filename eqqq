@@ -1,0 +1,1745 @@
+[33mcommit e84b744856b7f46199a609a01de9ab44c9bae3f7[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mcleanJax_test[m[33m)[m
+Author: Kevin Wang <kw6487@princeton.edu>
+Date:   Sat Nov 30 18:21:46 2024 -0500
+
+    added try except to render
+
+[33mcommit 225d0f3c62b201f783549dc4c4dce9143a3e6661[m[33m ([m[1;31morigin/cleanJax_test[m[33m)[m
+Author: Kevin Wang <kw6487@princeton.edu>
+Date:   Fri Nov 29 18:00:34 2024 -0500
+
+    added humanoid back into train script (accidentally deleted when adding humanoid maze)
+
+[33mcommit dc93432b2da0c9ec58cd8683f462378af226f430[m
+Author: Kevin Wang <kw6487@princeton.edu>
+Date:   Sun Nov 17 05:34:25 2024 -0500
+
+    Added single_eval to u_maze in ant_maze.py
+
+[33mcommit 1833e0d9f19aacfd9979a9a9958d85f277bca39a[m
+Author: Yiying Zhang <yz9572@princeton.edu>
+Date:   Sun Nov 17 05:29:22 2024 -0500
+
+    Added binpick_easy_EEF and humanoid_maze
+
+[33mcommit 430714cac14dafb7b7f85692c850a5127c514ac9[m
+Author: Kevin Wang <kw6487@princeton.edu>
+Date:   Tue Nov 12 11:52:10 2024 -0500
+
+    Added success_hard
+
+[33mcommit a3dc477cf112cf86254b7b94f513567bc8a6c4ab[m
+Author: Kevin Wang <kwang13@dt-login02.delta.ncsa.illinois.edu>
+Date:   Sun Nov 10 22:56:18 2024 -0600
+
+    added u2-u5 for ant_maze env, changed default sgd to 800, added slurm .err files to .gitignore
+
+[33mcommit e1ea59e1e5787e626510cf98513f549a48846d52[m
+Author: Kevin Wang <kw6487@princeton.edu>
+Date:   Sun Nov 10 23:54:07 2024 -0500
+
+    Modified arm_grasp to allow custom noise
+
+[33mcommit 8e91c08a0b228edee76ca9e68edd0736e317dbbf[m
+Author: Kevin Wang <kw6487@princeton.edu>
+Date:   Sat Nov 9 15:46:29 2024 -0500
+
+    Added easier noise settings to arm_grasp
+
+[33mcommit 758d7cf1155882bfeae4cba7b43105b6111a4bd4[m
+Author: Kevin Wang <kw6487@princeton.edu>
+Date:   Sat Nov 9 14:16:42 2024 -0500
+
+    commiting to change to forked repo
+
+[33mcommit 5cc3c21bf85b1f01099e938430424398b2a9aa1c[m
+Author: Kevin Wang <kw6487@princeton.edu>
+Date:   Fri Nov 8 22:24:42 2024 -0500
+
+    another checkpoint (going to look at pusher)
+
+[33mcommit a7b51b5a8a9490f92a96d886df60c6fb0d362f1d[m
+Author: Kevin Wang <kw6487@princeton.edu>
+Date:   Thu Nov 7 01:35:45 2024 -0500
+
+    (not much change fundamentally) just to switch branch to get ant_push, ant_ball
+
+[33mcommit 7ed6fd95e331e2aab31be4f96c8a8bf006b2880f[m[33m ([m[1;31morigin/0-v[m[33m, [m[1;32m0-v[m[33m)[m
+Author: Kevin Wang <kw6487@princeton.edu>
+Date:   Wed Nov 6 15:49:42 2024 -0500
+
+    Changed ant.py back to old version (commit dff1: Added in some stuff like batchdiv2) before Colin's changes, and ant works again now
+
+[33mcommit 743c3de9a9b9ee6af568e2feec02ddb703216a64[m
+Author: Kevin Wang <kw6487@princeton.edu>
+Date:   Wed Nov 6 14:52:23 2024 -0500
+
+    Checkpoint: going to go back and see what's wrong, can we successfully run ant
+
+[33mcommit a6fed972b3dd52dd37639aaba8c1e2383aafdff1[m[33m ([m[1;31morigin/ant_test[m[33m, [m[1;32mant_test[m[33m)[m
+Author: Kevin Wang <kw6487@princeton.edu>
+Date:   Mon Nov 4 00:14:03 2024 -0500
+
+    Added in some stuff like batchdiv2, memory bank (mrn.py file), etc; now going to rebase in new Colin envs
+
+[33mcommit eeb5fa589bb2cc919f30e8243e9b4c8b9ea6340a[m
+Author: Kevin Wang <kw6487@princeton.edu>
+Date:   Tue Oct 29 21:43:50 2024 -0400
+
+    before memory bank
+
+[33mcommit e012e1ba03013c51510fd009bb9ace7d376f58f2[m
+Author: Kevin Wang <kw6487@princeton.edu>
+Date:   Tue Oct 29 19:47:50 2024 -0400
+
+    before MRN
+
+[33mcommit c6b86be6bd8b5aee883db86aa701348c4aa4ca3f[m[33m ([m[1;31morigin/master[m[33m, [m[1;31morigin/HEAD[m[33m, [m[1;32mmaster[m[33m)[m
+Merge: 92158cc a3e0f3b
+Author: Władysław Pałucki <56890546+wladekpal@users.noreply.github.com>
+Date:   Fri Oct 25 17:06:22 2024 +0200
+
+    Merge pull request #6 from MichalBortkiewicz/debug_maze_env
+    
+    Simple maze env
+
+[33mcommit a3e0f3b92ede60ed15f0691be3616fd932dd3b58[m
+Merge: 767a64b 92158cc
+Author: wladekpal <wladek.palucki@gmail.com>
+Date:   Fri Oct 25 17:05:07 2024 +0200
+
+    Merge branch 'master' into debug_maze_env
+
+[33mcommit 767a64b283e7e04b2ddd781912e5ee34c2d9cf53[m
+Author: wladekpal <wladek.palucki@gmail.com>
+Date:   Fri Oct 25 17:00:26 2024 +0200
+
+    Changed name from debug_maze to simple_maze
+
+[33mcommit 38b3fd0f6dd81a983692cd098b6459da30199c3b[m
+Author: wladekpal <wladek.palucki@gmail.com>
+Date:   Thu Oct 24 16:05:31 2024 +0200
+
+    Simple maze environment for debug/visualization purposes
+
+[33mcommit 92158cc08db133a83547b2e41c71597f619def28[m
+Merge: ae7c931 bb35714
+Author: Colin Lu <1colin.lu@gmail.com>
+Date:   Mon Oct 21 08:15:27 2024 -0400
+
+    Merge pull request #4 from MichalBortkiewicz/manipulation_environments
+    
+    Make environments more tractable + add bugfixes, add goal visualizations, make clerical changes
+
+[33mcommit ae7c93108c1c911e379a6c3192b4256555dcb769[m
+Author: MichalBortkiewicz <michalbortkiewicz8@gmail.com>
+Date:   Thu Oct 17 20:04:31 2024 +0200
+
+    chore: update README.md
+
+[33mcommit 04e5f0efe750ee1dd66ca693a1fec0d9cbd04c06[m
+Author: MichalBortkiewicz <michalbortkiewicz8@gmail.com>
+Date:   Thu Oct 17 20:03:05 2024 +0200
+
+    chore: update README.md
+
+[33mcommit bb35714f6d31ed193ef64301fa97e297897e5c93[m
+Author: Colin Lu <1colin.lu@gmail.com>
+Date:   Thu Oct 17 00:38:33 2024 -0400
+
+    Add binary open-close, option for delta-angle control, finger-bin collision
+
+[33mcommit 838a58e34eb0d06ab792c2ed7e9a2b03f293c1f2[m
+Merge: 72b91a4 b82149f
+Author: Colin Lu <1colin.lu@gmail.com>
+Date:   Wed Oct 16 10:36:34 2024 -0400
+
+    Merge changes from utils refactor
+
+[33mcommit b82149ff73a84d4e550e730bae2d59dc52380f00[m
+Merge: 0ace8da bbcbc5e
+Author: Władysław Pałucki <56890546+wladekpal@users.noreply.github.com>
+Date:   Tue Oct 15 13:13:55 2024 +0200
+
+    Merge pull request #3 from MichalBortkiewicz/utils_refactor
+    
+    Utils refactor
+
+[33mcommit 72b91a486d2461fa3f191bacd0ebe1cfbace8912[m
+Author: Colin Lu <1colin.lu@gmail.com>
+Date:   Mon Oct 14 16:29:23 2024 -0400
+
+    Make environments more tractable + add bugfixes, add binpick easy, rename pickplace to push, make organizational changes
+
+[33mcommit bbcbc5e9c8a3e1ad9063a3da2111cfcb7d4821c0[m
+Author: wladekpal <wladek.palucki@gmail.com>
+Date:   Mon Oct 14 18:22:17 2024 +0200
+
+    Reverted Ant Big Maze to previous state
+
+[33mcommit 2e4df93ffad1eb9bb38fbd37f654dc7aee13c05f[m
+Author: wladekpal <wladek.palucki@gmail.com>
+Date:   Mon Oct 14 18:02:22 2024 +0200
+
+    Added multiple start positions to ant_maze
+
+[33mcommit 6557dc3cba93dbdac88e8d103bb726150f4c4920[m
+Author: wladekpal <wladek.palucki@gmail.com>
+Date:   Mon Oct 14 09:57:20 2024 +0200
+
+    Added default backend to humanoid env
+
+[33mcommit 9fbe7127d17fa21c6d3685d8b90694f25133f4e7[m
+Author: wladekpal <wladek.palucki@gmail.com>
+Date:   Mon Oct 14 09:35:07 2024 +0200
+
+    Added arguments to change distance in humanoid env
+
+[33mcommit 759ff7d0040d3d31f448931599f198e3a7e7fb00[m
+Author: wladekpal <wladek.palucki@gmail.com>
+Date:   Mon Oct 14 09:30:27 2024 +0200
+
+    Removed "inf" mass from goals in ant environments
+
+[33mcommit e83d05f6c6b11cf9c05361cc98dbe6faf54cb170[m
+Author: wladekpal <wladek.palucki@gmail.com>
+Date:   Mon Oct 14 09:29:08 2024 +0200
+
+    Renamed obs_dim to state_dim for clarity
+
+[33mcommit 143b10fbd9b4491fc2ca69870341bca96fafe126[m
+Author: wladekpal <wladek.palucki@gmail.com>
+Date:   Mon Oct 14 09:19:52 2024 +0200
+
+    Removed unused trajectory index wrapper
+
+[33mcommit 0315223b7916364c17b7e23d87af19fccd438e75[m
+Author: wladekpal <wladek.palucki@gmail.com>
+Date:   Mon Oct 14 09:15:31 2024 +0200
+
+    Removed config tuple and replaced it with dynamically generated one
+
+[33mcommit 0ace8dacb4b24f9fa1566fdff3a3c6022a08ae47[m
+Author: MichalBortkiewicz <michalbortkiewicz8@gmail.com>
+Date:   Tue Oct 8 15:36:21 2024 +0200
+
+    chore: update grid.png
+
+[33mcommit 994f8d9142ec0ae53460e47c486d68b1bc7e54c7[m
+Merge: dc1be54 4521e79
+Author: Colin Lu <1colin.lu@gmail.com>
+Date:   Sat Oct 5 09:50:25 2024 -0400
+
+    Merge pull request #2 from MichalBortkiewicz/manipulation_environments
+    
+    Add manipulation environments
+
+[33mcommit 4521e799bb68cea6649fd3a35c2b6e2164763fbe[m
+Author: Colin Lu <1colin.lu@gmail.com>
+Date:   Fri Oct 4 11:29:03 2024 -0400
+
+    Make final docstring changes
+
+[33mcommit b0b82d6905f66e118731ce30ef8a72162786c747[m
+Author: Colin Lu <1colin.lu@gmail.com>
+Date:   Fri Oct 4 11:25:45 2024 -0400
+
+    Make minor bugfixes
+
+[33mcommit 39d1975b38d06978fb6c7c11a86dca6c3731e392[m
+Author: Colin Lu <1colin.lu@gmail.com>
+Date:   Fri Oct 4 11:20:24 2024 -0400
+
+    Add minor clarity changes
+
+[33mcommit 9758fd5699df6a504f034d99f911f76a3ba474c8[m
+Author: Colin Lu <1colin.lu@gmail.com>
+Date:   Fri Oct 4 11:13:28 2024 -0400
+
+    Reorganize arm_envs grouping slightly
+
+[33mcommit df51b7371d94ae6d99e24fb3f9c7452daaaaabb5[m
+Author: Colin Lu <1colin.lu@gmail.com>
+Date:   Fri Oct 4 11:04:12 2024 -0400
+
+    Refactor shared functionality and interface for arm environments, also extend finger length in XML
+
+[33mcommit f818a82425f3c63d579c14903aaa1b0bed5fcf3c[m
+Author: Colin Lu <1colin.lu@gmail.com>
+Date:   Thu Oct 3 12:34:38 2024 -0400
+
+    Refactor arm envs
+
+[33mcommit bc6bd680a9225b13b2bc2e241dcb5a51c24a8204[m
+Author: Colin Lu <1colin.lu@gmail.com>
+Date:   Wed Oct 2 22:43:35 2024 -0400
+
+    Normalize timesteps
+
+[33mcommit 80344bcf8ec3bee3bda4dc63ffbeebd16fc7f717[m
+Author: Colin Lu <1colin.lu@gmail.com>
+Date:   Wed Oct 2 21:12:34 2024 -0400
+
+    Add visual mat for grasp
+
+[33mcommit 850648f14702f7600a37b499e340dcd352354f20[m
+Author: Colin Lu <1colin.lu@gmail.com>
+Date:   Wed Oct 2 21:10:23 2024 -0400
+
+    Adjust reach visual mat
+
+[33mcommit 90c4c4bde827002f25dd39986f237f1eb5502925[m
+Author: Colin Lu <1colin.lu@gmail.com>
+Date:   Wed Oct 2 21:08:23 2024 -0400
+
+    Make grasp and reach have more reasonable goals
+
+[33mcommit 1ca3173240c63a612636e1da6b1f5aa8a7da5569[m
+Merge: de3e176 dc1be54
+Author: Colin Lu <1colin.lu@gmail.com>
+Date:   Wed Oct 2 19:40:19 2024 -0400
+
+    Merge utils.py
+
+[33mcommit de3e176fe48e8eb120c967405e98fdfcb668b4c3[m
+Author: Colin Lu <1colin.lu@gmail.com>
+Date:   Wed Oct 2 19:37:46 2024 -0400
+
+    Add new manipulation environments
+
+[33mcommit dc1be54475c4ffd0a2f73eed7fd5ced60338d1ca[m
+Merge: a3bb875 a4b370e
+Author: Vivek Myers <vivek.myers@gmail.com>
+Date:   Thu Sep 26 21:19:03 2024 -0700
+
+    Merge branch 'master' of github.com:MichalBortkiewicz/JaxGCRL
+
+[33mcommit a3bb8759ee57452cf3ca255a8863621d794068da[m
+Author: Vivek Myers <vivek.myers@gmail.com>
+Date:   Thu Sep 26 21:18:00 2024 -0700
+
+    add renders dir by default
+
+[33mcommit a4b370e35961496e09d3b275585c66c661ac31a2[m
+Merge: ede9190 3655549
+Author: Colin Lu <1colin.lu@gmail.com>
+Date:   Wed Sep 25 14:03:20 2024 -0400
+
+    Merge pull request #1 from MichalBortkiewicz/env_refactor
+    
+    Refactor goal specification, clean up utils.py defaults, upgrade compatibility to newest brax/mjx
+
+[33mcommit 3655549dccb27a7530fdded62c96999e08568bcc[m
+Author: Colin Y. Lu <cl3654@della-vis1.princeton.edu>
+Date:   Wed Sep 25 14:00:23 2024 -0400
+
+    Fix typo in training.py
+
+[33mcommit 18456854a3c622fee0c158bb25a1bf0004c3cd5b[m
+Author: Colin Y. Lu <cl3654@della-vis1.princeton.edu>
+Date:   Tue Sep 24 14:04:12 2024 -0400
+
+    Properly revert train.sh changes
+
+[33mcommit e166922b656c6ef12ca6d3dbf6d5cf86d007fb58[m
+Author: Colin Y. Lu <cl3654@della-vis1.princeton.edu>
+Date:   Tue Sep 24 14:03:11 2024 -0400
+
+    Revert train.sh modification
+
+[33mcommit 53d79c027036b8da33bc64af3f4c4ce698c19975[m
+Author: Colin Y. Lu <cl3654@della-vis1.princeton.edu>
+Date:   Mon Sep 23 16:09:12 2024 -0400
+
+    Refactor goal specification, clean up utils.py defaults, upgrade compatibility to newest brax/mjx
+
+[33mcommit ede9190b4573c091f84c74c265c63e6ed8b73ef8[m
+Author: Raj Ghugare <rajghugare.vnit@gmail.com>
+Date:   Fri Sep 13 14:35:26 2024 -0400
+
+    Update README.md for clean-jaxGCRL
+
+[33mcommit d45ffeed8aa1c56ba9e24d152519ad207a142224[m
+Author: RajGhugare19 <rajghugare.vnit@gmail.com>
+Date:   Fri Sep 13 14:27:51 2024 -0400
+
+    adding initial code for clean_JaxGCRL
+
+[33mcommit 3f640b00bae20be845339e75603a10c923c07612[m
+Author: Vivek Myers <vivek.myers@gmail.com>
+Date:   Wed Aug 28 13:41:42 2024 -0700
+
+    typo
+
+[33mcommit 7265b3018ef1dfc5f0d68eaac5ff17d7471996be[m
+Author: Ben Eysenbach <ben-eysenbach@users.noreply.github.com>
+Date:   Tue Aug 27 09:42:26 2024 -0400
+
+    Update README.md
+    
+    clarified wording on readme
+
+[33mcommit a82abb27c915af3411191e6a1d254b7756e58a38[m
+Author: MichalBortkiewicz <michalbortkiewicz8@gmail.com>
+Date:   Wed Aug 21 09:51:24 2024 +0200
+
+    chore: update arxiv info
+
+[33mcommit 51d042eaed13b4febce4aed6d4155d53e0ec4816[m
+Author: MichalBortkiewicz <michalbortkiewicz8@gmail.com>
+Date:   Tue Aug 20 22:14:36 2024 +0200
+
+    chore: update train.sh
+
+[33mcommit 5aef731252549cd6f76b8ac7281fd6520ba1b210[m
+Author: MichalBortkiewicz <michalbortkiewicz8@gmail.com>
+Date:   Tue Aug 20 20:25:28 2024 +0200
+
+    chore: update README.md
+
+[33mcommit db3b77b194e178cea317ae2c742abb607ba081d2[m
+Author: MichalBortkiewicz <michalbortkiewicz8@gmail.com>
+Date:   Tue Aug 20 20:21:14 2024 +0200
+
+    chore: update imgs
+
+[33mcommit 4a6dcb4dd1d5177b4aac991cc679060d83ae4bca[m
+Author: MichalBortkiewicz <michalbortkiewicz8@gmail.com>
+Date:   Tue Aug 20 20:20:05 2024 +0200
+
+    chore: update readme
+
+[33mcommit 5ffaede237cd8a0122bef220c88ea5e43864da20[m
+Author: MichalBortkiewicz <33608338+MichalBortkiewicz@users.noreply.github.com>
+Date:   Tue Aug 20 20:15:45 2024 +0200
+
+    fix: plots change
+    
+    * fix: plots change
+    
+    * chore: add option to use standard error and not 95% CI
+
+[33mcommit 975b4009f392caea3364eedf7d3ae5de81e62972[m
+Merge: 09e64f9 bf8c73d
+Author: Vivek Myers <vivek.myers@gmail.com>
+Date:   Sun Aug 18 17:14:17 2024 -0700
+
+    Merge branch 'master' of github.com:MichalBortkiewicz/crl-exploration
+
+[33mcommit 09e64f97891cc6838cd369787429210e5e9562fc[m
+Author: Vivek Myers <vivek.myers@gmail.com>
+Date:   Sun Aug 18 02:00:57 2024 -0700
+
+    repr dim option
+
+[33mcommit bf8c73d24da2db2be5cef2d7cbb222a1f71ec117[m
+Author: MichalBortkiewicz <michalbortkiewicz8@gmail.com>
+Date:   Sun Aug 18 08:25:02 2024 +0200
+
+    fix: ant_maze.py
+
+[33mcommit db9213bb6f01fdd13eefed7f6032d4b48506e978[m
+Author: Vivek Myers <vivek.myers@gmail.com>
+Date:   Sat Aug 17 23:19:08 2024 -0700
+
+    fix
+
+[33mcommit aab46e6b24aa2ea9b64fdf66fe207f71a5dbb613[m
+Author: Vivek Myers <vivek.myers@gmail.com>
+Date:   Sat Aug 17 16:53:52 2024 -0700
+
+    clean
+
+[33mcommit b9fef9eb6b83be46ceb9eba3b3b6c8161858c8a4[m
+Merge: 5e9c3c1 2fb62cf
+Author: Vivek Myers <vivek.myers@gmail.com>
+Date:   Sat Aug 17 16:52:41 2024 -0700
+
+    Merge branch 'master' of github.com:MichalBortkiewicz/crl-exploration
+
+[33mcommit 5e9c3c1f0e9e24cbd2ee9f961ee7f9c60d8a3434[m
+Author: Vivek Myers <vivek.myers@gmail.com>
+Date:   Sat Aug 17 16:51:54 2024 -0700
+
+    fix
+
+[33mcommit 2fb62cfd54bdc72913715c5f394f72c607b34708[m
+Author: MichalBortkiewicz <michalbortkiewicz8@gmail.com>
+Date:   Sat Aug 17 19:44:45 2024 +0200
+
+    chore: fix README.md
+
+[33mcommit 8b7ea7ba94cb21c2aa6b022e29fc0295cac7b8c6[m
+Author: MichalBortkiewicz <michalbortkiewicz8@gmail.com>
+Date:   Sat Aug 17 19:43:38 2024 +0200
+
+    chore: fix README.md
+
+[33mcommit 3b595e1974fdddc5850fccc91931851378e954ec[m
+Author: MichalBortkiewicz <michalbortkiewicz8@gmail.com>
+Date:   Sat Aug 17 19:40:42 2024 +0200
+
+    chore: authors list
+
+[33mcommit 11636640d1ba930b16e41b7cd8d8cb3960f0041b[m
+Author: MichalBortkiewicz <33608338+MichalBortkiewicz@users.noreply.github.com>
+Date:   Sat Aug 17 19:39:39 2024 +0200
+
+    refactor: update README.md and restructure repo
+    
+    * refactor: remove old files and move visualize.ipynb
+    
+    * Some refactoring in envs, removed old_trans and tested_args parameters
+    
+    * Merge remote-tracking branch 'origin/refactor' into refactor/cleaning-up
+    
+    * refactor: remove old images and reamde.md changes
+    
+    * chore: update README.md
+    
+    * chore: update README.md
+    
+    * refactor: change folder names and upgrade README.md, sweep.yml etc
+    
+    * chore: authors list
+
+[33mcommit 42e2b4f617f8ebd0baf39d9b127641ec50fd2996[m
+Author: MichalBortkiewicz <33608338+MichalBortkiewicz@users.noreply.github.com>
+Date:   Sat Aug 17 13:33:45 2024 +0200
+
+    feat: plots and small code refactoring
+    
+    * chore: remove q network (SAC artifact)
+    
+    * feat: add notebook with results plotting (WIP)
+    
+    * feat: add notebook with results plotting
+    
+    * chore: improve visibility
+    
+    * feat: add architecture comparisons plots
+    
+    * feat: add layer norm comparison plots
+    
+    * feat: add contrastive functions plotting and runs syncing wandb
+    
+    * feat: add logsumexp plotting
+    
+    * exp: contrastive plots - add novel methods
+    
+    * fix: make other contrastive functions work
+    
+    * fix: environment.yml so that repo is installable with one command
+    
+    * fix: train.sh - simple running sh script
+    
+    * chore: update plotting
+    
+    * chore: update plotting
+    
+    * fix: update plotting
+
+[33mcommit f4db21cb7e65924cfbaa5fdee17685b56fa34c22[m
+Author: Vivek Myers <vivek.myers@gmail.com>
+Date:   Fri Aug 16 22:11:46 2024 -0700
+
+    l2 penalty for reprs
+
+[33mcommit 1e4232c693802b7497c688e924d89fe5b56aba3d[m
+Merge: f500dfd 5977091
+Author: wladekpal <56890546+wladekpal@users.noreply.github.com>
+Date:   Fri Aug 9 14:27:01 2024 +0200
+
+    Merge pull request #17 from MichalBortkiewicz/PO_losses
+    
+    Added DPO, IPO and SPPO losses based on Preference Optimization
+
+[33mcommit 5977091450b82d4e8ba54f17bf1435a900b2196c[m
+Author: wladekpal <wladek.palucki@gmail.com>
+Date:   Fri Aug 9 14:25:14 2024 +0200
+
+    Added DPO, IPO and SPPO losses based on Preference Optimization
+
+[33mcommit f500dfd1960f757e3a45bb9d0925078881052263[m
+Author: wladekpal <56890546+wladekpal@users.noreply.github.com>
+Date:   Wed Aug 7 20:30:43 2024 +0200
+
+    Humanoid and Ant Push (#16)
+    
+    * Added ant push environment (for now only for positional backend)
+    
+    * Using x8 scale in ant_push (as in hiro paper)
+    Made env a bit more stable with additional collision detections
+    Goals are now sampled from one of two possible locations (+ noise)
+    
+    * Added 3rd axis to box in ant_push
+    
+    * Adapting ant_push to mjx
+    
+    * Changed ant_push xml so that, walls are fused to reduce contact pairs
+    Added assert to ensure mjx backend on ant_push
+    
+    * Initial humanoid configuration
+    
+    * Reset handling in environment
+    
+    * 3rd dimension of goal
+    
+    * Fixed wrong distance calculation for 3d position of humanoid
+    Merged changes from main branch
+    
+    * Decreased humanoid distance and fixed 3d distance calculation
+    
+    * Increased the mass of the block in ant_push
+    
+    * Reverted the movable block mass change
+
+[33mcommit 88e9303c618610e542d4dfd7552e1ac69dd79825[m
+Author: Vivek Myers <vivek.myers@gmail.com>
+Date:   Thu Aug 1 02:32:07 2024 -0700
+
+    fix
+
+[33mcommit ebe327a2917eed3d689382a7e4d1845b591b3004[m
+Author: Vivek Myers <vivek.myers@gmail.com>
+Date:   Thu Aug 1 02:21:35 2024 -0700
+
+    flags for potential and action shuffling w/ MRN
+
+[33mcommit a5c0c273024f45fa82ca369cc4c1d437cbad4505[m
+Author: Vivek Myers <vivek.myers@gmail.com>
+Date:   Wed Jul 31 19:54:02 2024 -0700
+
+    CMD + infonce_backward + no shuf
+
+[33mcommit 8bc623ca426f1f4453adab89ef2e2aaa4e948f1a[m
+Author: Vivek Myers <vivek.myers@gmail.com>
+Date:   Wed Jul 31 19:51:28 2024 -0700
+
+    future actions
+
+[33mcommit 1303e5ff50c35dd9027a7dddeef3b81f01590e68[m
+Author: Vivek Myers <vivek.myers@gmail.com>
+Date:   Tue Jul 30 23:13:26 2024 -0700
+
+    remove exp_name
+
+[33mcommit 46cb0a68607708a64d93eec5a6d206331ae6f195[m
+Author: Vivek Myers <vivek.myers@gmail.com>
+Date:   Tue Jul 30 21:46:10 2024 -0700
+
+    Modified: crl_new/losses.py
+
+[33mcommit e2143793b99aa9666204094f2480435303e7474e[m
+Author: Vivek Myers <vivek.myers@gmail.com>
+Date:   Tue Jul 30 21:34:22 2024 -0700
+
+    reduce default num_envs
+
+[33mcommit 96270a7300097cb57ed1c0d233df00b5ef32d18f[m
+Author: Vivek Myers <vivek.myers@gmail.com>
+Date:   Tue Jul 30 21:25:36 2024 -0700
+
+    Deleted: makefile
+
+[33mcommit ed8845a1249e4a84bd087850d429a9884ecaefb6[m
+Author: Vivek Myers <vivek.myers@gmail.com>
+Date:   Tue Jul 30 21:20:04 2024 -0700
+
+    rename mrn
+
+[33mcommit cd51d0db3cb3b350c1455577f78e52cf5b5e9522[m
+Author: Vivek Myers <vivek.myers@gmail.com>
+Date:   Tue Jul 30 21:03:04 2024 -0700
+
+    fix
+
+[33mcommit aea372cad4d3afb977e707d86263afaa503d38a9[m
+Author: Vivek Myers <vivek.myers@gmail.com>
+Date:   Tue Jul 30 20:19:57 2024 -0700
+
+    cmd1_nopot option
+
+[33mcommit e14783e310d602124424184a1a29e0a940dbb7d2[m
+Author: Vivek Myers <vivek.myers@gmail.com>
+Date:   Tue Jul 30 12:52:14 2024 -0700
+
+    numerical stability of CMD1
+
+[33mcommit 0c6ea3b5b8875dbf3e53eb3a546f7f299bfdaa34[m
+Author: Vivek Myers <vivek.myers@gmail.com>
+Date:   Mon Jul 29 21:43:07 2024 -0700
+
+    CMD1 implementation with MRN
+
+[33mcommit 72dbd850aeee08fd2a7c17cb36cb1b8d2d5fc901[m
+Author: Vivek Myers <vivek.myers@gmail.com>
+Date:   Mon Jul 29 21:30:01 2024 -0700
+
+    flatnce implementation
+
+[33mcommit bef26e8a787736d418a34f615def77ba94c06e6d[m
+Merge: 53f4f46 95088e1
+Author: Vivek Myers <vivek.myers@gmail.com>
+Date:   Mon Jul 29 19:05:46 2024 -0700
+
+    Merge branch 'master' of github.com:MichalBortkiewicz/crl-exploration
+
+[33mcommit 53f4f469eddf204b681b271e8dfcd7c57de13be8[m
+Author: Vivek Myers <vivek.myers@gmail.com>
+Date:   Mon Jul 29 19:02:57 2024 -0700
+
+    switch to symmetric infonce default
+
+[33mcommit 95088e14e3a123d3b04af39fde14700f3af52cfc[m
+Author: MichalBortkiewicz <33608338+MichalBortkiewicz@users.noreply.github.com>
+Date:   Mon Jul 29 09:51:50 2024 +0200
+
+    feat: minor changes - configurable architecture etc
+    
+    * feat: add optional group and project name to args
+    
+    * chore: check for nans in metrics
+    
+    * chore: remove unused env
+    
+    * fix: resubstitution in losses.py
+    
+    * fix: c_target adding
+    
+    * fix: numerical stability
+    
+    * fix: align and unify losses logging
+    
+    * Merge remote-tracking branch 'refs/remotes/origin/master' into feat/e…
+    
+    * fix: bug with not using energy function defined by arg
+    
+    * chore: remove discounting unused arg in train fun
+    
+    * feat: add cosine energy function
+    
+    * feat: add new energy functions
+    
+    * fix: typos
+    
+    * Merge remote-tracking branch 'refs/remotes/origin/master' into feat/e…
+    
+    * chore: replace fori_loop with scan
+    
+    * chore: small changes to exploration_coef
+    
+    * feat: add optional layer_norm and architecture size definition to arg…
+
+[33mcommit b6b128c6a5146ed4ab4f9deca579f22a0652f30b[m
+Merge: 8c2d6d9 d521322
+Author: Vivek Myers <33012196+vivekmyers@users.noreply.github.com>
+Date:   Sat Jul 13 19:53:11 2024 -0700
+
+    Merge pull request #14 from MichalBortkiewicz/ben
+    
+    Added a Monte Carlo version of the Forward Backward loss.
+
+[33mcommit d521322e823c913f963b64a854475c0350a371df[m
+Author: Ben Eysenbach <ben-eysenbach@users.noreply.github.com>
+Date:   Sat Jul 13 17:29:53 2024 -0400
+
+    Added a Monte Carlo version of the Forward Backward loss.
+
+[33mcommit 8c2d6d989257382db697296737d03124daee9cd9[m
+Author: Vivek Myers <vivek.myers@gmail.com>
+Date:   Mon Jul 8 11:38:35 2024 -0700
+
+    numerical stability
+
+[33mcommit c6e876ef9647215cf92e0a8210a6e5e8df166d7a[m
+Author: MichalBortkiewicz <33608338+MichalBortkiewicz@users.noreply.github.com>
+Date:   Fri Jun 28 15:30:13 2024 +0200
+
+    feat: add optional: c_target parameter, exploration_coefficient, and resubstitution (#13)
+    
+    * feat: add target penalty
+    
+    * feat: add target penalty (different) and logging
+    
+    * resubstitution flag
+    
+    * comment
+    
+    * fix flags
+    
+    * feat: add optional learning of c_target parameter
+    
+    * feat: add optional exploration coefficient
+    
+    * resubs in logsumexp penalty
+    
+    ---------
+    
+    Co-authored-by: Vivek Myers <vivek.myers@gmail.com>
+
+[33mcommit b115c99be4098c489911fe818f9c6d25495b887e[m
+Merge: 05b2d76 a3c5be6
+Author: wladekpal <56890546+wladekpal@users.noreply.github.com>
+Date:   Tue Jun 18 20:41:48 2024 +0200
+
+    Merge pull request #12 from MichalBortkiewicz/hard_ant_envs
+    
+    Hard ant envs
+
+[33mcommit a3c5be68fb252485530812fa7f3be4e5e639a568[m
+Author: wladekpal <wladek.palucki@gmail.com>
+Date:   Tue Jun 18 20:40:25 2024 +0200
+
+    Deleted test.py file
+    Removed duplicated code
+
+[33mcommit e802faeafee62da7c5b5c6fe1675d2d130b22502[m
+Merge: 5f36053 05b2d76
+Author: wladekpal <wladek.palucki@gmail.com>
+Date:   Tue Jun 18 15:11:53 2024 +0200
+
+    Merge branch 'master' into hard_ant_envs
+
+[33mcommit 5f360533e280beb3b1d468187575953f91a94e63[m
+Author: wladekpal <wladek.palucki@gmail.com>
+Date:   Tue Jun 18 15:07:43 2024 +0200
+
+    Changed maze scaling from 2.0 to 4.0 to reproduce original paper
+    Changed constraints for target position to reflect scaling changes
+
+[33mcommit c558ebf6b95d6751787d6f31f3a13c55c4e7e480[m
+Author: wladekpal <wladek.palucki@gmail.com>
+Date:   Thu Jun 13 17:19:52 2024 +0200
+
+    Changed name `hard_ant` to `ant_ball` for clarity
+    Made `ant_ball` environment easier by bringing goal, ant and object closer together
+
+[33mcommit 8d3c87ceb0fa9701101f869452dfd93f1bd21bab[m
+Author: wladekpal <wladek.palucki@gmail.com>
+Date:   Wed Jun 12 18:56:37 2024 +0200
+
+    Added option to use different env in evaluation
+    Added 2 eval maze envs
+
+[33mcommit 1d32b1fd6ca4fe45727367888f8d22ecc3288306[m
+Author: wladekpal <wladek.palucki@gmail.com>
+Date:   Wed Jun 12 18:12:15 2024 +0200
+
+    Fixed spring backend for ant_maze env
+
+[33mcommit 5df7f0b8890b6667c55d722fdfbd97e4a370ac53[m
+Author: wladekpal <wladek.palucki@gmail.com>
+Date:   Wed Jun 12 15:57:21 2024 +0200
+
+    Updated brax (necessary for ant_maze rendering)
+
+[33mcommit 674608f9fb95bb19c7f6648bf3bbf07acd9142f4[m
+Merge: 6819ba8 8137555
+Author: wladekpal <wladek.palucki@gmail.com>
+Date:   Wed Jun 12 12:27:58 2024 +0200
+
+    Merge remote-tracking branch 'origin/hard_ant_envs' into hard_ant_envs
+
+[33mcommit 6819ba8767f300489c63e92cb985e07caa8e0c7e[m
+Author: wladekpal <wladek.palucki@gmail.com>
+Date:   Wed Jun 12 12:22:08 2024 +0200
+
+    Added ant maze envs
+
+[33mcommit 05b2d762b732b9dc999a5c19c0c575befab654e9[m
+Author: wladekpal <56890546+wladekpal@users.noreply.github.com>
+Date:   Tue Jun 11 14:08:58 2024 +0200
+
+    Representation visualization (#11)
+    
+    * Added critic parameter saving
+    Added checkpointing after evaluation
+    Added config saving
+    Reorganized params and render folders to run folders
+    Started working on notebook for visualizations
+    
+    * Added visualization notebook
+    
+    * Added easier checkpoint handling in visualization notebook
+    
+    * Typo in comment
+
+[33mcommit 8137555520485247d5ccc4fac74fc44a937d7a92[m
+Author: wladekpal <wladek.palucki@gmail.com>
+Date:   Mon Jun 10 17:57:24 2024 +0200
+
+    Comments
+
+[33mcommit 80885dc304213093f40809fcd74f956e05e7ce8d[m
+Author: wladekpal <wladek.palucki@gmail.com>
+Date:   Sun Jun 9 17:06:01 2024 +0200
+
+    Updated utils.py to new observation sizes
+
+[33mcommit 3800a165cedc4ec7ff8e6559a6b9a69c38b6b1e1[m
+Author: wladekpal <wladek.palucki@gmail.com>
+Date:   Sun Jun 9 17:02:18 2024 +0200
+
+    Removed z axis from ball observation
+
+[33mcommit f8b8af5fc684841af654850505c1c3687e18c2f2[m
+Author: wladekpal <wladek.palucki@gmail.com>
+Date:   Sun Jun 9 14:46:17 2024 +0200
+
+    Hard ant (with ball) first test
+
+[33mcommit 79dc59da4953c6b138b57e2fa041fe369b850e01[m
+Author: wladekpal <wladek.palucki@gmail.com>
+Date:   Sat Jun 8 19:03:06 2024 +0200
+
+    Typo in comment
+
+[33mcommit d10ecf61547f55643ead2781682a18464dd2f92e[m
+Merge: 4aab7dc 3b82d53
+Author: wladekpal <wladek.palucki@gmail.com>
+Date:   Sat Jun 8 19:00:27 2024 +0200
+
+    Merge branch 'master' into representation_visualization
+
+[33mcommit 4aab7dce278ea0c7224bd046e99c693486ac7c44[m
+Author: wladekpal <wladek.palucki@gmail.com>
+Date:   Sat Jun 8 18:55:14 2024 +0200
+
+    Added easier checkpoint handling in visualization notebook
+
+[33mcommit 3b82d53ac795970bfc880084bac80638d09ce6ad[m
+Author: MichalBortkiewicz <33608338+MichalBortkiewicz@users.noreply.github.com>
+Date:   Sat Jun 8 18:00:17 2024 +0200
+
+    feat: add L2 distance as energy function
+    
+    * chore: small refactor
+    
+    * chore: different psi and phi logging
+    
+    * chore: add optional backend argument
+    
+    * feat: add L2 distance as energy function
+
+[33mcommit 0334cf4dac60b8129ab5e39f13afd3dacc3ea2dd[m
+Author: wladekpal <wladek.palucki@gmail.com>
+Date:   Thu Jun 6 15:52:46 2024 +0200
+
+    Added visualization notebook
+
+[33mcommit 412c672f5a58282dec9d05b8556e4fc11800d702[m
+Author: wladekpal <wladek.palucki@gmail.com>
+Date:   Wed Jun 5 23:02:28 2024 +0200
+
+    Added critic parameter saving
+    Added checkpointing after evaluation
+    Added config saving
+    Reorganized params and render folders to run folders
+    Started working on notebook for visualizations
+
+[33mcommit 67aecc51e04810b68b3674516c17f82b2b84c524[m
+Author: MichalBortkiewicz <33608338+MichalBortkiewicz@users.noreply.github.com>
+Date:   Mon Jun 3 21:37:25 2024 +0200
+
+    feat: add half-cheetah, debug wrapper and sac sanity check (#9)
+    
+    * feat: add half-cheetah
+    
+    * feat: add entropy logging
+    
+    * Added trajectory index wrapper
+    
+    * Fixed the way trajectory debug info is displayed in loss function
+    
+    * Fixed extract function not taking batch dimension into account
+    
+    * chore: add half-cheetah that works with SAC (still wip with CRL)
+    
+    * refactor: small refactor for sac transitions usage
+    
+    * chore: add phi and psi logging + flag to disable entropy in actor
+    
+    * chore: half-cheetah clean up
+    
+    * feat: add SAC training script for sanity checks
+    
+    * chore: fix random goals
+    
+    * chore: traj_wrapper handling
+    
+    ---------
+    
+    Co-authored-by: wladekpal <wladek.palucki@gmail.com>
+
+[33mcommit 54fddaa7db20fa7391e2fadffc2e8dbffca7a0f5[m
+Author: Vivek Myers <vivek.myers@gmail.com>
+Date:   Thu May 30 17:27:03 2024 -0700
+
+    Bernoulli random goals
+
+[33mcommit e64d4d851a61997d2d248ec6445eda56a68a1fe5[m
+Author: Vivek Myers <vivek.myers@gmail.com>
+Date:   Thu May 30 11:35:22 2024 -0700
+
+    log phi psi marginal
+
+[33mcommit 160d818d2cf64d660d6e0465accfd139dc61162e[m
+Author: wladekpal <56890546+wladekpal@users.noreply.github.com>
+Date:   Wed May 22 15:24:34 2024 +0200
+
+    Feat/pusher (#8)
+    
+    Added Pusher and PusherReacher envs (Pusher still doesn't work)
+    Added --random_goals parameter that allows for training actor with randomized goals
+    Added --use_old_trans parameter that allows for training actor with transitions sampled directly from the buffer, bypassing flatten_crl_fn
+    Added policy entropy logging
+    
+    
+    * Added pusher environment in two kinds
+    Added mutli gpu support
+    
+    * Added success tracking to pusher
+    
+    * Added distance reward, and success logging to pusher
+    Added an option to randomly shuffle goals in actor loss
+    
+    * Added policy entropy logging
+    Added reward_near and reward_ctrl logging
+    
+    * Changed evaluator to one that can log more aggregate statistics and whether there was any success in eval.
+    Added success metric to pusher (it is pretty strict for now, maybe we should loosen it a bit).
+    
+    * Merged with logging branch
+    
+    * Fixed rendering crash on pusher
+    
+    * chore: small ant clean up
+    
+    * chore: improve debug_env by adding parallel id to obs
+    
+    * fix: reshape transitions, so that there is no chance for same trj in one batch
+    
+    * refactor: ant
+    
+    * refactor: reacher
+    
+    * refactor: debug env
+    
+    * refactor: evaluator
+    
+    * fix: train.py so that only necessary metrics are in the state_extras
+    
+    * fix: BIG FIX reacher - remove velocity from goal AND use generalize backend
+    
+    now it's working
+    reacher_generalized_no_vel_short
+    https://wandb.ai/cl-probing/crl/runs/dot83q28
+    
+    * fix: use permutation on flat array of transitions, so that data is not correlated in time
+    
+    * chore: reacher default params
+    
+    * Small typo in PusherReacher
+    
+    * Added option to use unchanged transitions for actor loss
+    
+    * Comment change in pusher
+    
+    * Added ant config creation
+    
+    * Added additional args to other envs configs
+    
+    * Added back ant metrics
+    
+    * Reordered metrics for readability
+    
+    ---------
+    
+    Co-authored-by: MichalBortkiewicz <michalbortkiewicz8@gmail.com>
+
+[33mcommit 0666af0f528bcabd3950e9641016d054eb320001[m
+Author: MichalBortkiewicz <michalbortkiewicz8@gmail.com>
+Date:   Fri May 17 14:36:48 2024 +0200
+
+    fix: scripts/sweep.yml
+
+[33mcommit 1f81108786d81436527c422cbc48ea4478173a8c[m
+Author: Vivek Myers <vivek.myers@gmail.com>
+Date:   Thu May 16 23:54:03 2024 -0700
+
+    Modified: scripts/sweep.yml
+
+[33mcommit 84e8f3a104b5963434257be16642cdbb1f1eccc9[m
+Author: Vivek Myers <vivek.myers@gmail.com>
+Date:   Thu May 16 10:55:34 2024 -0700
+
+    Modified: crl_new/losses.py
+
+[33mcommit 547b8d5885ac9ee240911e70911079e22be52090[m
+Author: MichalBortkiewicz <33608338+MichalBortkiewicz@users.noreply.github.com>
+Date:   Thu May 16 12:01:17 2024 +0200
+
+    fix: reacher
+    
+    * chore: small ant clean up
+    
+    * chore: improve debug_env by adding parallel id to obs
+    
+    * fix: reshape transitions, so that there is no chance for same trj in …
+    
+    * refactor: ant
+    
+    * refactor: reacher
+    
+    * refactor: debug env
+    
+    * refactor: evaluator
+    
+    * fix: train.py so that only necessary metrics are in the state_extras
+    
+    * fix: BIG FIX reacher - remove velocity from goal AND use generalize b…
+    
+    * fix: use permutation on flat array of transitions, so that data is no…
+    
+    * chore: reacher default params
+
+[33mcommit 42df8a6b54d1f25cc851ec61cf0bf8a2a210c070[m
+Author: Vivek Myers <vivek.myers@gmail.com>
+Date:   Tue May 14 11:58:05 2024 -0700
+
+    sweep code
+
+[33mcommit bebe45d1fa94754c73a9488acb19270767676718[m
+Author: Vivek Myers <vivek.myers@gmail.com>
+Date:   Sat May 11 15:12:10 2024 -0700
+
+    more losses
+
+[33mcommit e74951107e79fc56ea4bcdb977cb2683e88cd060[m
+Author: Vivek Myers <vivek.myers@gmail.com>
+Date:   Fri May 10 17:30:11 2024 -0700
+
+    symmetric infonce implementation
+
+[33mcommit 8ee063e64cdc4e6239c75d4cb0b4313369e5071d[m
+Author: Vivek Myers <vivek.myers@gmail.com>
+Date:   Fri May 10 14:52:15 2024 -0700
+
+    more lr flags
+
+[33mcommit 11b9c7078b01bf51675fd1710806d943dbae0f78[m
+Author: MichalBortkiewicz <33608338+MichalBortkiewicz@users.noreply.github.com>
+Date:   Thu May 9 09:05:06 2024 +0200
+
+    chore: add ant reproduction params
+    
+    * chore: add ant reproduction params
+
+[33mcommit 9960802a53b77ec1cfca093ce657d9697c21339d[m
+Merge: 02cf538 df1de55
+Author: MichalBortkiewicz <33608338+MichalBortkiewicz@users.noreply.github.com>
+Date:   Thu May 9 08:51:45 2024 +0200
+
+    feat: efficient RB for CRL sampling and working ant environment
+    
+    feat: efficient RB for CRL sampling and working ant environment
+
+[33mcommit 02cf5387226c7a534a4222f83734d1de4181fe0a[m
+Author: Vivek Myers <vivek.myers@gmail.com>
+Date:   Wed May 8 13:22:06 2024 -0700
+
+    environment.yml
+
+[33mcommit df1de55e9273293c0ca5868ecc309a1b0639c721[m
+Author: MichalBortkiewicz <michalbortkiewicz8@gmail.com>
+Date:   Tue May 7 15:29:02 2024 +0200
+
+    refactor: remove other artifacts such as grad_updates_per_step
+
+[33mcommit 3fbd93f032c05dc679c8c60b68000ff41df4091d[m
+Author: MichalBortkiewicz <michalbortkiewicz8@gmail.com>
+Date:   Tue May 7 15:08:00 2024 +0200
+
+    refactor: remove all artifacts from old SAC
+
+[33mcommit d2f9791e4c572de1549bfd81578f2b34e83590c2[m
+Author: MichalBortkiewicz <michalbortkiewicz8@gmail.com>
+Date:   Tue May 7 15:05:14 2024 +0200
+
+    refactor: evaluator - formatting
+
+[33mcommit 57277076827b30f25027ac4e78b311ca5bc9bd82[m
+Author: MichalBortkiewicz <michalbortkiewicz8@gmail.com>
+Date:   Tue May 7 14:59:43 2024 +0200
+
+    refactor: renaming from SAC to CRL - train.py etc
+
+[33mcommit 72d118219667c4774cc22d9001df07447a60b049[m
+Author: MichalBortkiewicz <michalbortkiewicz8@gmail.com>
+Date:   Tue May 7 14:56:18 2024 +0200
+
+    refactor: renaming from SAC to CRL - networks.py etc
+
+[33mcommit b9ed9900e0972558a231c1b09724bd342108ec75[m
+Author: MichalBortkiewicz <michalbortkiewicz8@gmail.com>
+Date:   Tue May 7 14:53:14 2024 +0200
+
+    chore: add new evaluator to calculate percentage of successes
+
+[33mcommit 920896824ad4ccf1942a6f400ef5b1610e82e4a7[m
+Author: MichalBortkiewicz <michalbortkiewicz8@gmail.com>
+Date:   Tue May 7 14:50:07 2024 +0200
+
+    chore: improve rendering and show report number of sgd to env steps
+
+[33mcommit 1bc8d47c60bf3d9116cbfde3f470028c1ddb6893[m
+Author: MichalBortkiewicz <michalbortkiewicz8@gmail.com>
+Date:   Mon May 6 16:11:18 2024 +0200
+
+    chore: jit some methods (but not visible speedup)
+
+[33mcommit f8b6c191a6690da8aa1e2ab71c5e9348b8f8c748[m
+Author: MichalBortkiewicz <michalbortkiewicz8@gmail.com>
+Date:   Mon May 6 15:22:44 2024 +0200
+
+    fix: handling terminal states by addn small epsilon diagonal matrix to probs
+
+[33mcommit d69e08e7706753a29225daa2e7c602383b43252d[m
+Author: MichalBortkiewicz <michalbortkiewicz8@gmail.com>
+Date:   Thu May 2 12:58:25 2024 +0200
+
+    feat: start using new RB
+
+[33mcommit 37df5a9a2b04fce0f89b8bced0487275adbfe558[m
+Author: MichalBortkiewicz <michalbortkiewicz8@gmail.com>
+Date:   Thu May 2 12:45:03 2024 +0200
+
+    chore: add new RB structure with num_envs rows
+
+[33mcommit 4a856efae0cecec54115443a2cb4582c070d8d48[m
+Author: MichalBortkiewicz <michalbortkiewicz8@gmail.com>
+Date:   Wed May 1 10:17:49 2024 +0200
+
+    chore: update debug env
+
+[33mcommit dd002347f9f5a5d1c15c6cccb4f932204c322757[m
+Author: MichalBortkiewicz <michalbortkiewicz8@gmail.com>
+Date:   Wed May 1 10:16:23 2024 +0200
+
+    chore: critical change of probs calculation - to ignore other trajectories
+
+[33mcommit 1af206103b8c9a0c321dd89cf855b5a66bf59764[m
+Author: MichalBortkiewicz <michalbortkiewicz8@gmail.com>
+Date:   Mon Apr 29 10:05:35 2024 +0200
+
+    chore: move flatten_crl function to additional_sgds and use all transitions from flatten_crl
+
+[33mcommit b6de15ca00547c0f87454f4090f979fa3c2c5504[m
+Author: MichalBortkiewicz <michalbortkiewicz8@gmail.com>
+Date:   Mon Apr 29 09:32:55 2024 +0200
+
+    chore: additional sgd steps logic update
+
+[33mcommit 324bc50423afc1f3766b48d6ee0f5a5b6d159794[m
+Author: MichalBortkiewicz <michalbortkiewicz8@gmail.com>
+Date:   Sun Apr 28 17:27:19 2024 +0200
+
+    fix: super hard to detect buffer state bug
+
+[33mcommit 44204d60ffb7b6bc682354a39bfd5581b3984531[m
+Author: MichalBortkiewicz <michalbortkiewicz8@gmail.com>
+Date:   Sun Apr 21 12:36:59 2024 +0200
+
+    exp: sota reproduction
+
+[33mcommit 79be47d40abe96a23abc3eed78e0a4b353f6bddc[m
+Author: MichalBortkiewicz <michalbortkiewicz8@gmail.com>
+Date:   Sun Apr 21 12:00:18 2024 +0200
+
+    exp: probably reporo
+
+[33mcommit e4f5fbd5e1ba7bcd957a7fd98beac09ffebde669[m
+Author: MichalBortkiewicz <michalbortkiewicz8@gmail.com>
+Date:   Thu Apr 11 08:55:55 2024 +0200
+
+    feat: add additional sgd steps calculation
+
+[33mcommit 7e0d941017b56109f5ae301699c846afb41b17e0[m
+Author: MichalBortkiewicz <michalbortkiewicz8@gmail.com>
+Date:   Mon Apr 8 09:40:50 2024 +0200
+
+    chore: lil losses.py refactor, preparation for random goals
+
+[33mcommit fe972180516696ff29f8663cd9227abc46efca35[m
+Author: MichalBortkiewicz <michalbortkiewicz8@gmail.com>
+Date:   Mon Apr 8 09:39:34 2024 +0200
+
+    feat: add additional info to ant, so that episodes could be distinguished
+
+[33mcommit d535f92d2a98fe3cecbea57ec4f4b7d9482d15ce[m
+Author: MichalBortkiewicz <michalbortkiewicz8@gmail.com>
+Date:   Sun Apr 7 19:03:38 2024 +0200
+
+    chore: add ant args in utils.py
+
+[33mcommit 03b5ca9a28c78ca7529a61696f1ac336ffe2fe5f[m
+Author: MichalBortkiewicz <michalbortkiewicz8@gmail.com>
+Date:   Sun Apr 7 18:52:15 2024 +0200
+
+    chore: logg additional metrics
+
+[33mcommit 795908eaf0f72ca1664314c6d88d58e9a14a3419[m
+Merge: 8b72055 e758d53
+Author: MichalBortkiewicz <33608338+MichalBortkiewicz@users.noreply.github.com>
+Date:   Wed Apr 3 11:51:03 2024 +0200
+
+    refactor: clean up configs, args etc
+
+[33mcommit e758d53d3ead0fc06844449f52d2d53f73d0a1ff[m
+Author: MichalBortkiewicz <michalbortkiewicz8@gmail.com>
+Date:   Wed Apr 3 11:50:16 2024 +0200
+
+    feat: log render to wandb
+
+[33mcommit e8f9864fe2066845025e10bf57d9cb488fc0da80[m
+Author: MichalBortkiewicz <michalbortkiewicz8@gmail.com>
+Date:   Wed Apr 3 11:33:10 2024 +0200
+
+    feat: add env to args and possibility to run tested hparams + refactor
+
+[33mcommit 5070686e9a03944a590d82c3f0da2c95890c1c68[m
+Author: MichalBortkiewicz <michalbortkiewicz8@gmail.com>
+Date:   Sun Mar 31 20:03:15 2024 +0200
+
+    fix: bug with moving target
+    
+    solution: Error found, it is necessary to ensure that the range on the goal is greater in the XML than what we generate in the Python code
+
+[33mcommit d321227c84a1aeb74cec051a97ca6d637750ed14[m
+Author: MichalBortkiewicz <michalbortkiewicz8@gmail.com>
+Date:   Sat Mar 30 20:01:40 2024 +0100
+
+    chore: update renderer and target in ant
+
+[33mcommit 8bf4a97a59ed22542fb03f0b2cef8042aedc269f[m
+Author: MichalBortkiewicz <michalbortkiewicz8@gmail.com>
+Date:   Sat Mar 30 19:15:07 2024 +0100
+
+    chore: add plain ant.xml
+
+[33mcommit 88356f9a6badac826eeb0f5f8317bea5fb711905[m
+Author: MichalBortkiewicz <michalbortkiewicz8@gmail.com>
+Date:   Sat Mar 30 17:39:06 2024 +0100
+
+    feat: add plain ant env
+
+[33mcommit 8b72055bf0c549cc3c3beb476a1977d310ab7744[m
+Merge: 39d6ce2 4690e16
+Author: MichalBortkiewicz <33608338+MichalBortkiewicz@users.noreply.github.com>
+Date:   Sat Mar 30 17:31:23 2024 +0100
+
+    feat: add working CRL implementation
+
+[33mcommit 4690e162293192c18300ed2c58b1cda724f603c5[m
+Author: MichalBortkiewicz <michalbortkiewicz8@gmail.com>
+Date:   Sat Mar 30 17:30:24 2024 +0100
+
+    chore: remove old CRL files (mine wrong implementation)
+
+[33mcommit 949e8292d04c9e90fdb8c679c4c41be46a74319e[m
+Author: MichalBortkiewicz <michalbortkiewicz8@gmail.com>
+Date:   Sat Mar 30 17:28:27 2024 +0100
+
+    chore: small changes to goal-cond reacher env
+
+[33mcommit 8a0fdc2081324b48d4744b678914a25bb1f1ca83[m
+Author: MichalBortkiewicz <michalbortkiewicz8@gmail.com>
+Date:   Sat Mar 30 17:27:48 2024 +0100
+
+    fix: update render.py so that normalization is done
+
+[33mcommit bba5474fa71e386cbc2e7dc1a44eaf8d3e468c09[m
+Author: MichalBortkiewicz <michalbortkiewicz8@gmail.com>
+Date:   Sat Mar 30 17:27:26 2024 +0100
+
+    chore: remove plotting during training (to speed up)
+
+[33mcommit 537ba587e617bf9681d1215c4115bb84b08739d2[m
+Author: MichalBortkiewicz <michalbortkiewicz8@gmail.com>
+Date:   Sat Mar 30 17:26:56 2024 +0100
+
+    chore: add rendering after training
+
+[33mcommit e8fd34716ee2d1f3641e9160fdc25e9350acff6c[m
+Author: MichalBortkiewicz <michalbortkiewicz8@gmail.com>
+Date:   Sat Mar 30 17:26:36 2024 +0100
+
+    chore: update assert
+
+[33mcommit 5f55a43ee4507a7b2817040eb00d586501b1403a[m
+Author: MichalBortkiewicz <michalbortkiewicz8@gmail.com>
+Date:   Tue Mar 26 09:52:59 2024 +0100
+
+    feat: add (optional) actor CRL loss activations. CRL works
+    
+    Now, we have working CRL with following config:
+    
+    ```
+    --num_evals 10 --seed 1 --num_timesteps 500000 --batch_size 128 --num_envs 128 --exp_name crl_proper_500 --episode_length 1000 --unroll_length 50 --grad_updates_per_step 8192 --normalize_observations True --min_replay_size 0
+    ```
+
+[33mcommit 520cfa95c23aba3176b0fad9ee2da6e4b55be304[m
+Author: MichalBortkiewicz <michalbortkiewicz8@gmail.com>
+Date:   Sat Mar 23 13:09:27 2024 +0100
+
+    feat: update renderer
+
+[33mcommit 7b5edcb23c4aa539c890ccf5c5aca9e22800b8c0[m
+Author: MichalBortkiewicz <michalbortkiewicz8@gmail.com>
+Date:   Thu Mar 21 09:29:19 2024 +0100
+
+    feat: add CRL critic (not plugged into agent yet)
+    
+    Works great for:
+    ```
+    --num_evals 50 --seed 1 --num_timesteps 1000000 --batch_size 16 --num_envs 64 --exp_name big_test2 --episode_length 50 --unroll_length 50 --grad_updates_per_step 8192
+    ```
+
+[33mcommit b5467d7a4b8c7a4262badb56fb4ecff0f587dda4[m
+Author: MichalBortkiewicz <michalbortkiewicz8@gmail.com>
+Date:   Wed Mar 20 13:28:27 2024 +0100
+
+    chore: add config for debug runs and create CRL flatten func in RB
+
+[33mcommit 1c64603ae6952c18e603bac873c8eaed7926d711[m
+Author: MichalBortkiewicz <michalbortkiewicz8@gmail.com>
+Date:   Wed Mar 20 11:18:49 2024 +0100
+
+    chore: move obs flatten outside RB, so SAC and CRL could use different
+
+[33mcommit 1de842b543f9b3dd12d8353b39ff1c6cf4516c34[m
+Author: MichalBortkiewicz <michalbortkiewicz8@gmail.com>
+Date:   Wed Mar 20 11:05:51 2024 +0100
+
+    feat: add working Trajectory RB that samples data for SAC
+
+[33mcommit 304c597526af301d20a977812bf4f79e9927caff[m
+Author: MichalBortkiewicz <michalbortkiewicz8@gmail.com>
+Date:   Mon Mar 18 11:09:00 2024 +0100
+
+    feat: add working rollout (in crl_new)
+    
+    there was a problem in env_state it was not passed
+
+[33mcommit 9337fc4c724eb83e704b1868e46ca44769a994e1[m
+Author: MichalBortkiewicz <michalbortkiewicz8@gmail.com>
+Date:   Mon Mar 18 09:27:14 2024 +0100
+
+    feat: add new fresh sac implementation
+
+[33mcommit 98529ccada6abef8c52c2712f43fcc91662d387d[m
+Author: MichalBortkiewicz <michalbortkiewicz8@gmail.com>
+Date:   Mon Mar 18 09:25:49 2024 +0100
+
+    chore: old code - add debugging
+    
+    This has some bug and I don't know where...
+
+[33mcommit 39d6ce212cd7e729ca513d04d6f73e36f3435700[m
+Merge: 2e6614a 9ee96b5
+Author: MichalBortkiewicz <33608338+MichalBortkiewicz@users.noreply.github.com>
+Date:   Mon Mar 18 09:10:51 2024 +0100
+
+    feat: add wandb and getting back to "don't break a build"
+    
+    feat: add wandb etc
+
+[33mcommit 9ee96b51295c69d9a2e7b2195c11708b78841d58[m
+Author: MichalBortkiewicz <michalbortkiewicz8@gmail.com>
+Date:   Sun Mar 17 16:46:57 2024 +0100
+
+    fix: reacher env - remove control cost reward
+    
+    Now reward only based on the distance
+
+[33mcommit eaed90925e404ca186499184d30014f6f03af728[m
+Author: MichalBortkiewicz <michalbortkiewicz8@gmail.com>
+Date:   Sun Mar 17 15:59:00 2024 +0100
+
+    fix: remove control cost from reacher
+
+[33mcommit 051f1f236eaeb1c39de8b13381baf482c586df90[m
+Author: MichalBortkiewicz <michalbortkiewicz8@gmail.com>
+Date:   Sun Mar 17 15:38:54 2024 +0100
+
+    chore: improve debug env
+
+[33mcommit 04d7cd05a1bf038c692f9ddf2addcb0e2071d429[m
+Author: MichalBortkiewicz <michalbortkiewicz8@gmail.com>
+Date:   Sat Mar 16 19:19:35 2024 +0100
+
+    fix: use seperate crl_actor keys and use everywhere in train crl_policy_params
+    
+    and not policy_params
+
+[33mcommit 3f441c16bceca1c5aec4c628ca90bafd546aa56e[m
+Author: MichalBortkiewicz <michalbortkiewicz8@gmail.com>
+Date:   Sat Mar 16 19:17:44 2024 +0100
+
+    chor: make exactly the same policy as in old CRL
+
+[33mcommit b88397c24f99e89ebd8f4518b55ab7a03859c78d[m
+Author: MichalBortkiewicz <michalbortkiewicz8@gmail.com>
+Date:   Sat Mar 16 19:16:08 2024 +0100
+
+    fix: crl actor loss - postprocess action
+
+[33mcommit 9b1b85c553413b5142f9e8c3d88f1da1d57ffe06[m
+Author: MichalBortkiewicz <michalbortkiewicz8@gmail.com>
+Date:   Sat Mar 16 17:44:15 2024 +0100
+
+    fix: using sac_networks.crl_policy network
+    
+    previously sac was used
+
+[33mcommit caae6e7a854e09cf8f0dd0574dc9db2670d0cc5d[m
+Author: MichalBortkiewicz <michalbortkiewicz8@gmail.com>
+Date:   Sat Mar 16 15:27:20 2024 +0100
+
+    fix: sampling_transition key
+    
+    previously was also constant
+
+[33mcommit a75920695aaad33356a668b48ab61fa2caf5fe0d[m
+Author: MichalBortkiewicz <michalbortkiewicz8@gmail.com>
+Date:   Fri Mar 15 20:07:08 2024 +0100
+
+    fix: goal_index key in sampling (previously constant)
+
+[33mcommit feeeb47443f794e36fb31fb9e8773169fd5023bb[m
+Author: MichalBortkiewicz <michalbortkiewicz8@gmail.com>
+Date:   Fri Mar 15 10:40:53 2024 +0100
+
+    feat: add debugging data processing env
+
+[33mcommit 74bc5854de3fc226d671ee1662e67ac2c1c8c4a5[m
+Author: MichalBortkiewicz <michalbortkiewicz8@gmail.com>
+Date:   Thu Mar 14 17:52:57 2024 +0100
+
+    feat: add debugging metrics
+
+[33mcommit f18652f4e13966f0d00e7a76d708679c86a6827b[m
+Author: MichalBortkiewicz <michalbortkiewicz8@gmail.com>
+Date:   Thu Mar 14 12:27:18 2024 +0100
+
+    feat: add wandb, rendering, and .sh script for running multiple seeds at once
+
+[33mcommit 8aed9f09afe6fc26ddb56a1ffae6069d011c92a2[m
+Author: MichalBortkiewicz <michalbortkiewicz8@gmail.com>
+Date:   Thu Mar 14 11:07:30 2024 +0100
+
+    refactor: renames
+
+[33mcommit 5c7555650e55c7353148071add4a21a3a9084e75[m
+Author: MichalBortkiewicz <michalbortkiewicz8@gmail.com>
+Date:   Thu Mar 14 10:58:07 2024 +0100
+
+    refactor: move files
+
+[33mcommit 298cdf3fe7682eb24e403baff6c05a46e83e53f5[m
+Author: MichalBortkiewicz <michalbortkiewicz8@gmail.com>
+Date:   Thu Mar 14 10:48:32 2024 +0100
+
+    refactor: move files
+
+[33mcommit 2e6614aa17f490fc268072d408a30f6c97b2a519[m
+Merge: e84fe41 5535ac1
+Author: MichalBortkiewicz <33608338+MichalBortkiewicz@users.noreply.github.com>
+Date:   Fri Mar 8 16:30:53 2024 +0100
+
+    feat: add CRL method on reacher
+
+[33mcommit 5535ac1d28a780cd2102aa9f0408b1f6f4eafe55[m
+Author: MichalBortkiewicz <michalbortkiewicz8@gmail.com>
+Date:   Fri Mar 8 15:15:46 2024 +0100
+
+    feat: add entropy to CRL actor
+
+[33mcommit b56fbb3beb4b694a6802af61b5fc9d99d95c1768[m
+Author: MichalBortkiewicz <michalbortkiewicz8@gmail.com>
+Date:   Fri Mar 8 15:15:05 2024 +0100
+
+    feat: add possibility of running CRL policy for experience generation
+
+[33mcommit 62f89e779002e225f181f07c7dae5caf2f90dd34[m
+Author: MichalBortkiewicz <michalbortkiewicz8@gmail.com>
+Date:   Fri Mar 8 15:13:53 2024 +0100
+
+    chore: refactor reacher and use higher batch_size and number of envs
+
+[33mcommit c1d9ccef1e532dcab27f5494664feecc7fd0a161[m
+Author: MichalBortkiewicz <michalbortkiewicz8@gmail.com>
+Date:   Fri Mar 8 14:53:58 2024 +0100
+
+    chore: small humanoid_mj3.py changes
+
+[33mcommit 449d6342b92ec84f9a2b76d1048e14e0f12a305d[m
+Author: MichalBortkiewicz <michalbortkiewicz8@gmail.com>
+Date:   Thu Mar 7 12:35:01 2024 +0100
+
+    chore: update requirements
+
+[33mcommit 2098c5d55eb66ddd03b787c68372b0844bf3aada[m
+Author: MichalBortkiewicz <michalbortkiewicz8@gmail.com>
+Date:   Wed Mar 6 11:42:44 2024 +0100
+
+    feat: add crl actor loss
+
+[33mcommit 04160eb85c055d249f34204f188bee221c11be11[m
+Author: MichalBortkiewicz <michalbortkiewicz8@gmail.com>
+Date:   Wed Mar 6 11:41:07 2024 +0100
+
+    chore: update crl_critic loss
+
+[33mcommit 5c7b93fcef6bcfbb285514d6df5505667b2975b5[m
+Author: MichalBortkiewicz <michalbortkiewicz8@gmail.com>
+Date:   Wed Mar 6 11:13:27 2024 +0100
+
+    feat: add function that creates embedders
+
+[33mcommit d2690afd0b413934913cd201970fb6e482ea0b9b[m
+Author: MichalBortkiewicz <michalbortkiewicz8@gmail.com>
+Date:   Wed Mar 6 10:21:27 2024 +0100
+
+    feat: add RB that samples random (s,a,s_g)
+    
+    The current RB might get faster by modification of TrajectoryUniformSamplingQueue.flatten_fn. We might get the index of the chosen transition faster and not perform all of the sampling for seq_len-1 other transitions
+
+[33mcommit 7ce90403df90a2dd9af3d7c107227bcc1d9e1f08[m
+Author: MichalBortkiewicz <michalbortkiewicz8@gmail.com>
+Date:   Tue Mar 5 13:11:22 2024 +0100
+
+    feat: (WIP) add sampling function as in builder.py
+    
+    This function is for goal sampling in CRL, for regular SAC we have if that disables this behaviour
+
+[33mcommit 586bb36a7b02751aa8ff51785e12af2373311cf7[m
+Author: MichalBortkiewicz <michalbortkiewicz8@gmail.com>
+Date:   Tue Mar 5 13:08:04 2024 +0100
+
+    chore: small note
+
+[33mcommit 61714f521e60a9a19a1ffa36018b9bea61d3160b[m
+Author: MichalBortkiewicz <michalbortkiewicz8@gmail.com>
+Date:   Mon Mar 4 16:07:49 2024 +0100
+
+    chore: add working modified Reacher environment
+    
+    current env has obs of shape 20
+    (
+    sin(theta),cos(theta),tip_pos,tip_vel # state
+    0,0,0,0,target_pos,0,0,0  # goal
+    )
+
+[33mcommit 5348d988359e1538a966846f40256d687b35a460[m
+Author: MichalBortkiewicz <michalbortkiewicz8@gmail.com>
+Date:   Mon Mar 4 12:02:27 2024 +0100
+
+    chore: improve plotting
+
+[33mcommit a80ea2cbae7a2a90c1f50d179c427d82bdac8e4f[m
+Author: MichalBortkiewicz <michalbortkiewicz8@gmail.com>
+Date:   Mon Mar 4 10:23:35 2024 +0100
+
+    chore: improve plotting and make sure losses are not zero
+
+[33mcommit 58bfdf139221f44feaf226d8660891b5b4d3fa7b[m
+Author: MichalBortkiewicz <michalbortkiewicz8@gmail.com>
+Date:   Sun Mar 3 17:35:17 2024 +0100
+
+    feat: (WIP) add crl critic loss (currently only 0) and print it in vis function
+    
+    no negative and positive distinction yet, just first prototype of contrastive loss
+
+[33mcommit a176b168a381e1954213b700245e66898838023c[m
+Author: MichalBortkiewicz <michalbortkiewicz8@gmail.com>
+Date:   Sun Mar 3 17:24:25 2024 +0100
+
+    feat: add crl critic loss (WIP)
+    
+    no negative and positive distinction yet, just first prototype of contrastive loss
+
+[33mcommit dfe1fec8e244b960faf87757adec5ddadc0cffc9[m
+Author: MichalBortkiewicz <michalbortkiewicz8@gmail.com>
+Date:   Sat Mar 2 13:32:59 2024 +0100
+
+    feat: add sa_encoder and g_encoder to networks
+
+[33mcommit 1d822b95ab76da1fa684ff9603645a670d43cad2[m
+Author: MichalBortkiewicz <michalbortkiewicz8@gmail.com>
+Date:   Sat Mar 2 12:43:10 2024 +0100
+
+    feat: change RB to store trajectories and not transitions
+
+[33mcommit 2c717405b2bfa583d4ead92d357ec2662e5fe357[m
+Author: MichalBortkiewicz <michalbortkiewicz8@gmail.com>
+Date:   Fri Mar 1 16:34:22 2024 +0100
+
+    chore: small import changes
+    
+    to make imports from local files
+
+[33mcommit e84fe410267bb83f0ba6934a6d0bd86d90bbc99a[m
+Author: MichalBortkiewicz <michalbortkiewicz8@gmail.com>
+Date:   Fri Mar 1 16:27:50 2024 +0100
+
+    chore: change PPO to CRL approach to SAC to CRL
+
+[33mcommit d437c4a737871501df083bb994380d06e1021dc5[m
+Author: MichalBortkiewicz <michalbortkiewicz8@gmail.com>
+Date:   Fri Mar 1 15:01:45 2024 +0100
+
+    feat: add reacher training with PPO
+
+[33mcommit 50a869253615afcd0890ba9695640b5b78a5dae2[m
+Author: MichalBortkiewicz <michalbortkiewicz8@gmail.com>
+Date:   Thu Feb 22 13:27:26 2024 +0100
+
+    feat: add PPO from brax to local files (is working)
+
+[33mcommit 78a84ecfb706d391ee2118f738fc17c19b81f833[m
+Author: MichalBortkiewicz <michalbortkiewicz8@gmail.com>
+Date:   Thu Feb 22 13:13:31 2024 +0100
+
+    chore: move old envs
+
+[33mcommit adc8cc477858f65a0315b978e47c8a02802563fa[m
+Author: MichalBortkiewicz <michalbortkiewicz8@gmail.com>
+Date:   Thu Feb 22 13:06:20 2024 +0100
+
+    chore: update requirements.txt and README.md
+
+[33mcommit c845f133bdc4b74aeeffc471c9152e04e8e6aa72[m
+Author: MichalBortkiewicz <michalbortkiewicz8@gmail.com>
+Date:   Thu Feb 22 13:06:20 2024 +0100
+
+    chore: update requirements.txt and README.md
+
+[33mcommit 6c5b92edf19998473d87fadf2a9771417168da67[m
+Author: MichalBortkiewicz <michalbortkiewicz8@gmail.com>
+Date:   Tue Feb 20 08:13:12 2024 +0100
+
+    feat: add mj3 humanoid
+
+[33mcommit f29b5cb413bfbaafd5155b647e1b44ec91f51b48[m
+Author: MichalBortkiewicz <michalbortkiewicz8@gmail.com>
+Date:   Mon Feb 12 15:05:24 2024 +0100
+
+    feat: add files from Ben repo
+
+[33mcommit 1a8442b6073fcbeacead654f94d63f8c0f635cf3[m
+Author: MichalBortkiewicz <michalbortkiewicz8@gmail.com>
+Date:   Mon Feb 12 15:03:40 2024 +0100
+
+    init

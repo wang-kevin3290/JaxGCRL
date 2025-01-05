@@ -447,6 +447,7 @@ def train(
   training_walltime = 0
   current_step = 0
   for eval_epoch_num in range(num_evals_after_init):
+    print(f"iteration {eval_epoch_num} out of {num_evals_after_init}", flush=True)
     logging.info('starting iteration %s %s', eval_epoch_num, time.time() - xt)
 
     for _ in range(max(num_resets_per_eval, 1)):
