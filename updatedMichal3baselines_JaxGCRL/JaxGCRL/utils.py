@@ -82,6 +82,7 @@ def create_parser():
     parser.add_argument('--use_dense_reward', default=False, action="store_true", help="Whether to use sparse reward in env")
     parser.add_argument('--use_her', default=False, action="store_true", help="Whether to use HER for SAC")
     parser.add_argument('--visualization_interval', type=int, default=5, help="Number of evals between each visualization of trajectories")
+    parser.add_argument('--alg', type=str, default='crl', help="Algorithm to use")
     return parser
 
 

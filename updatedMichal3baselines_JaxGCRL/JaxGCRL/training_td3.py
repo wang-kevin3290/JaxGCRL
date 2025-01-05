@@ -6,6 +6,8 @@ import pickle
 import wandb
 from brax.io import model
 from pyinstrument import Profiler
+import random
+
 
 from src.baselines.td3.td3_train import train
 from utils import MetricsRecorder, get_env_config, create_env, create_eval_env, create_parser
@@ -90,6 +92,16 @@ def main(args):
 if __name__ == "__main__":
     parser = create_parser()
     args = parser.parse_args()
+    
+    args.alg = 'td3'
+    print(f"args.alg: {args.alg}", flush=True)
+    
+    #instead of using the given seed, we overwrite it with a random seed from 1 to 1000
+    args.seed = random.randint(1, 1000)
+    #instead of name being exp_name, we define it
+    run_name = f"{args.env_name}_{args.alg}_{args.num_timesteps}_depth:{args.n_hidden}_seed:{args.seed}"
+    args.exp_name = run_name
+    print(f"Run name: {run_name}", flush=True)
 
     print("Arguments:")
     print(
