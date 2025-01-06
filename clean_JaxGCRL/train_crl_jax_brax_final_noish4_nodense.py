@@ -122,7 +122,7 @@ class Args:
     
     num_render: int = 10
     
-    save_buffer: int = 1
+    save_buffer: int = 0
     
     
     
