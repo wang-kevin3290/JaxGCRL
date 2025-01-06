@@ -1218,32 +1218,6 @@ if __name__ == "__main__":
         path = f"{save_path}/final.pkl"
         save_params(path, params)
         
-        
-    #After training is complete, save the Args
-    if args.checkpoint:
-        with open(f"{save_path}/args.pkl", 'wb') as f:
-            pickle.dump(args, f)
-        print(f"Saved args to {save_path}/args.pkl", flush=True)
-        
-    #After training is complete, save the replay buffer (if save_buffer is 1, this takes a lot of memory)
-    if args.checkpoint:
-        if args.save_buffer:
-            print("Saving final buffer_state and buffer data (everything needed to recreate replay_buffer)...", flush=True)
-            try:
-                buffer_path = f"{save_path}/final_buffer.pkl"
-                buffer_data = {
-                    'buffer_state': buffer_state,
-                    'max_replay_size': args.max_replay_size,
-                    'batch_size': args.batch_size,
-                    'num_envs': args.num_envs,
-                    'episode_length': args.episode_length,
-                }
-                with open(buffer_path, 'wb') as f:
-                    pickle.dump(buffer_data, f)
-                print(f"Saved replay_buffer to {buffer_path}", flush=True)
-            except Exception as e:
-                print(f"Error saving final replay buffer: {e}", flush=True)
-        
     # After training is complete, render the final policy
     if args.capture_vis:
         def render_policy(training_state, save_path):
@@ -1286,6 +1260,31 @@ if __name__ == "__main__":
             render_policy(training_state, save_path)
         except Exception as e:
             print(f"Error rendering final policy: {e}", flush=True)
+        
+    #After training is complete, save the Args
+    if args.checkpoint:
+        with open(f"{save_path}/args.pkl", 'wb') as f:
+            pickle.dump(args, f)
+        print(f"Saved args to {save_path}/args.pkl", flush=True)
+        
+    #After training is complete, save the replay buffer (if save_buffer is 1, this takes a lot of memory)
+    if args.checkpoint:
+        if args.save_buffer:
+            print("Saving final buffer_state and buffer data (everything needed to recreate replay_buffer)...", flush=True)
+            try:
+                buffer_path = f"{save_path}/final_buffer.pkl"
+                buffer_data = {
+                    'buffer_state': buffer_state,
+                    'max_replay_size': args.max_replay_size,
+                    'batch_size': args.batch_size,
+                    'num_envs': args.num_envs,
+                    'episode_length': args.episode_length,
+                }
+                with open(buffer_path, 'wb') as f:
+                    pickle.dump(buffer_data, f)
+                print(f"Saved replay_buffer to {buffer_path}", flush=True)
+            except Exception as e:
+                print(f"Error saving final replay buffer: {e}", flush=True)
         
         
         
