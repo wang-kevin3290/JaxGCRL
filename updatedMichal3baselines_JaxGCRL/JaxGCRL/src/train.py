@@ -528,7 +528,7 @@ def train(
     replay_buffer = jit_wrap(replay_buffer)
     
     # Network functions
-    block_size = 2 # Maybe make this a hyperparameter
+    block_size = 4 # Maybe make this a hyperparameter
     num_blocks = max(1, n_hidden // block_size)
     actor = Net(action_size * 2, h_dim, num_blocks, block_size, use_ln)
     sa_encoder = Net(repr_dim, h_dim, num_blocks, block_size, use_ln)

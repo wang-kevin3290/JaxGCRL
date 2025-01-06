@@ -17,6 +17,7 @@ class TD3Networks:
     policy_network: networks.FeedForwardNetwork
     q_network: networks.FeedForwardNetwork
     
+    
 class MLP(linen.Module):
     """MLP module."""
 

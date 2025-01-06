@@ -14,7 +14,7 @@
 
 """PPO networks."""
 
-from typing import Sequence, Tuple
+from typing import Sequence, Tuple, Callable, Any
 
 from brax.training import distribution
 from brax.training import networks
@@ -25,6 +25,9 @@ from flax import linen
 import jax
 from flax.linen.initializers import variance_scaling
 import jax.numpy as jnp
+
+ActivationFn = Callable[[jnp.ndarray], jnp.ndarray]
+Initializer = Callable[..., Any]
 
 
 @flax.struct.dataclass
