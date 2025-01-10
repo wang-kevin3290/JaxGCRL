@@ -119,7 +119,7 @@ if __name__ == "__main__":
     #instead of using the given seed, we overwrite it with a random seed from 1 to 1000
     args.seed = random.randint(1, 1000)
     #instead of name being exp_name, we define it
-    run_name = f"{args.env_name}_{args.alg}_{args.num_timesteps}_depth:{args.n_hidden}_seed:{args.seed}"
+    run_name = f"{args.env_name}_{args.alg}_{args.num_timesteps}_depth:{args.n_hidden}_logsumexp_penalty:{args.logsumexp_penalty}_seed:{args.seed}"
     args.exp_name = run_name
     print(f"Run name: {run_name}", flush=True)
 
