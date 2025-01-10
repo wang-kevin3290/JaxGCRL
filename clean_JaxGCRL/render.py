@@ -1,3 +1,34 @@
+import jax
+from jax import numpy as jp
+import matplotlib.pyplot as plt
+from IPython.display import HTML
+from brax.io import model, html
+import matplotlib.pyplot as plt 
+# from sklearn.preprocessing import StandardScaler
+# from sklearn.decomposition import PCA
+# from src import networks
+# from utils import get_env_config, create_env
+import pickle
+import numpy as np
+import flax.linen as nn
+from flax.linen.initializers import variance_scaling
+from datetime import datetime
+import wandb
+
+eval_env_id = 'humanoid_u_maze'
+actor_network_width = 256
+actor_network_depth = 64
+actor_skip_connections = 4
+actor_use_relu = 0
+save_path = './runs/humanoid_u_maze_846_20250110-062736'
+pkl_file = 'step_60567552.pkl' #'final.pkl'
+
+vis_length = 1000
+num_rollouts = 10
+send_wandb = False
+wandb_run_id = "vnwk2iz8"
+
+
 def make_env(env_id):
     print(f"making env with env_id: {env_id}", flush=True)
     if env_id == "reacher":
@@ -19,16 +50,30 @@ def make_env(env_id):
             exclude_current_positions_from_observation=False,
             terminate_when_unhealthy=True,
         )
-
-
+        
     elif "ant" in env_id and "maze" in env_id: #needed the add the ant check to differentiate with humanoid maze
-        from envs.ant_maze import AntMaze
-        env = AntMaze(
-            backend="spring",
-            exclude_current_positions_from_observation=False,
-            terminate_when_unhealthy=True,
-            maze_layout_name=env_id[4:]
-        )
+            if "gen" not in env_id:
+                from envs.ant_maze import AntMaze
+                env = AntMaze(
+                    backend="spring",
+                    exclude_current_positions_from_observation=False,
+                    terminate_when_unhealthy=True,
+                    maze_layout_name=env_id[4:]
+                )
+
+            else:
+                from envs.ant_maze_generalization import AntMazeGeneralization
+                gen_idx = env_id.find("gen")
+                maze_layout_name = env_id[4:gen_idx-1]
+                generalization_config = env_id[gen_idx+4:]
+                print(f"maze_layout_name: {maze_layout_name}, generalization_config: {generalization_config}", flush=True)
+                env = AntMazeGeneralization(
+                    backend="spring",
+                    exclude_current_positions_from_observation=False,
+                    terminate_when_unhealthy=True,
+                    maze_layout_name=maze_layout_name,
+                    generalization_config=generalization_config
+                )
 
     
     elif env_id == "ant_ball":
@@ -123,40 +168,27 @@ def make_env(env_id):
 
 
 
-
-
-
-import jax
-from jax import numpy as jp
-import matplotlib.pyplot as plt
-from IPython.display import HTML
-from brax.io import model, html
-import matplotlib.pyplot as plt 
-# from sklearn.preprocessing import StandardScaler
-# from sklearn.decomposition import PCA
-# from src import networks
-# from utils import get_env_config, create_env
-import pickle
-import numpy as np
-import flax.linen as nn
-from flax.linen.initializers import variance_scaling
-from datetime import datetime
-import wandb
-
-eval_env_id = 'ant'
-actor_network_width = 256
-actor_network_depth = 4
-actor_skip_connections = 0
-actor_use_relu = 0
-save_path = './runs/ant_298_20241212-181643'
-vis_length = 1000
-num_rollouts = 1
-send_wandb = False
-wandb_run_id = "vnwk2iz8"
-
-
 env = make_env(eval_env_id)
 action_size = env.action_size
+
+lecun_unfirom = variance_scaling(1/3, "fan_in", "uniform")
+bias_init = nn.initializers.zeros
+def residual_block(x, width, normalize, activation):
+    identity = x
+    x = nn.Dense(width, kernel_init=lecun_unfirom, bias_init=bias_init)(x)
+    x = normalize(x)
+    x = activation(x)
+    x = nn.Dense(width, kernel_init=lecun_unfirom, bias_init=bias_init)(x)
+    x = normalize(x)
+    x = activation(x)
+    x = nn.Dense(width, kernel_init=lecun_unfirom, bias_init=bias_init)(x)
+    x = normalize(x)
+    x = activation(x)
+    x = nn.Dense(width, kernel_init=lecun_unfirom, bias_init=bias_init)(x)
+    x = normalize(x)
+    x = activation(x)
+    x = x + identity
+    return x
 
 class Actor(nn.Module):
     action_size: int
@@ -185,17 +217,15 @@ class Actor(nn.Module):
         
         print(f"x.shape: {x.shape}", flush=True)
 
-        for i in range(self.network_depth):
-            x = nn.Dense(self.network_width, kernel_init=lecun_unfirom, bias_init=bias_init)(x)
-            x = normalize(x)
-            x = activation(x)
-            
-            if self.skip_connections:
-                if i == 0:
-                    skip = x
-                if i > 0 and i % self.skip_connections == 0:
-                    x = x + skip
-                    skip = x
+        #Initial layer
+        x = nn.Dense(self.network_width, kernel_init=lecun_unfirom, bias_init=bias_init)(x)
+        x = normalize(x)
+        x = activation(x)
+        #Residual blocks
+        for i in range(self.network_depth // 4):
+            x = residual_block(x, self.network_width, normalize, activation)
+        #Final layer
+        # x = nn.Dense(64, kernel_init=lecun_unfirom, bias_init=bias_init)(x)
 
         mean = nn.Dense(self.action_size, kernel_init=lecun_unfirom, bias_init=bias_init)(x)
         log_std = nn.Dense(self.action_size, kernel_init=lecun_unfirom, bias_init=bias_init)(x)
@@ -207,7 +237,7 @@ class Actor(nn.Module):
     
 actor = Actor(action_size=action_size, network_width=actor_network_width, network_depth=actor_network_depth, skip_connections=actor_skip_connections, use_relu=actor_use_relu)
 
-params = model.load_params(save_path + '/final.pkl')
+params = model.load_params(save_path + '/' + pkl_file)
 _, actor_params, _ = params
 # sa_encoder_params, g_encoder_params = encoders_params['sa_encoder'], encoders_params['g_encoder'] #not needed I think, only actor
 
