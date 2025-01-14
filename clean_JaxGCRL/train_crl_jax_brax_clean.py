@@ -210,28 +210,6 @@ class G_encoder(nn.Module):
         return x
 
 
-class Sym(nn.Module):
-    dim_hidden: int = 176  # First hidden layer dimension, 176 based off the paper
-    dim_embed: int = 64  # Final output size
-
-    @nn.compact
-    def __call__(self, x: jnp.ndarray):
-        x = nn.Dense(self.dim_hidden)(x)  # First hidden layer (176 units)
-        x = nn.relu(x)  # ReLU activation
-        x = nn.Dense(self.dim_embed)(x)  # Final embedding layer (64 units)
-        return x
-
-
-class Asym(nn.Module):
-    dim_hidden: int = 176  # First hidden layer dimension
-    dim_embed: int = 64  # Final output size
-
-    @nn.compact
-    def __call__(self, x: jnp.ndarray):
-        x = nn.Dense(self.dim_hidden)(x)  # First hidden layer (176 units)
-        x = nn.relu(x)  # ReLU activation
-        x = nn.Dense(self.dim_embed)(x)  # Final embedding layer (64 units)
-        return x
 
 
 class Actor(nn.Module):
@@ -611,32 +589,16 @@ if __name__ == "__main__":
     g_encoder = G_encoder(network_width=args.critic_network_width, network_depth=args.critic_depth,
                           skip_connections=args.critic_skip_connections, use_relu=args.use_relu)
     g_encoder_params = g_encoder.init(g_key, np.ones([1, args.goal_end_idx - args.goal_start_idx]))
-    # c = jnp.asarray(0.0, dtype=jnp.float32) (NOT USED IN CODE, WHATS THIS)
 
-    sym = Sym()
-    sym_params = sym.init(sym_key, np.ones([1, 64]))
-    asym = Asym()
-    asym_params = asym.init(asym_key, np.ones([1, 64]))
+    critic_state = TrainState.create(
+        apply_fn=None,
+        params={
+            "sa_encoder": sa_encoder_params,
+            "g_encoder": g_encoder_params
+        },
+        tx=optax.adam(learning_rate=args.critic_lr),
+    )
 
-    if not args.mrn:
-        critic_state = TrainState.create(
-            apply_fn=None,
-            params={
-                "sa_encoder": sa_encoder_params,
-                "g_encoder": g_encoder_params
-            },
-            tx=optax.adam(learning_rate=args.critic_lr),
-        )
-    else:
-        critic_state = TrainState.create(
-            apply_fn=None,
-            params={
-                "sa_encoder": sa_encoder_params,
-                "g_encoder": g_encoder_params,
-                "sym": sym_params,
-                "asym": asym_params},
-            tx=optax.adam(learning_rate=args.critic_lr),
-        )
 
     # Entropy coefficient
     target_entropy = -args.entropy_param * action_size  # action_size = 8 for ant, 17 for humanoid, etc # USEED TO BE -0.5 * action_size
@@ -647,19 +609,7 @@ if __name__ == "__main__":
         tx=optax.adam(learning_rate=args.alpha_lr),
     )
 
-
-    def jit_wrap(memory_bank):
-        memory_bank.insert = jax.jit(memory_bank.insert)
-        memory_bank.sample = jax.jit(memory_bank.sample)
-        return memory_bank
-
-
-    if args.memory_bank:
-        memory_bank = jit_wrap(
-            MemoryBank(memory_bank_size=args.memory_bank_size, feature_dim=64, batch_size=args.batch_size))
-        memory_bank_state = jax.jit(memory_bank.init)(memory_bank_key)
-    else:
-        memory_bank_state = None
+    memory_bank_state = None
 
     # Trainstate
     training_state = TrainingState(
@@ -740,62 +690,6 @@ if __name__ == "__main__":
         )
 
 
-    def multi_sample_actor_step(training_state, env, env_state, key, K, extra_fields):
-        # Get K sets of actions from the actor
-        keys = jax.random.split(key, K)
-        means, log_stds = actor.apply(training_state.actor_state.params, env_state.obs)
-        stds = jnp.exp(log_stds)
-
-        # Sample K actions
-        actions = jnp.stack([
-            nn.tanh(means + stds * jax.random.normal(k, shape=means.shape, dtype=means.dtype))
-            for k in keys
-        ])  # Shape: (K, batch_size, action_dim)
-
-        # Compute Q values for each action
-        state = env_state.obs[:, :args.obs_dim]
-        goal = env_state.obs[:, args.obs_dim:]
-
-        # Compute SA and G representations for each action
-        sa_reprs = jax.vmap(
-            lambda a: sa_encoder.apply(
-                training_state.critic_state.params["sa_encoder"],
-                state,
-                a
-            )
-        )(actions)  # Shape: (K, batch_size, repr_dim)
-
-        g_repr = g_encoder.apply(
-            training_state.critic_state.params["g_encoder"],
-            goal
-        )  # Shape: (batch_size, repr_dim)
-
-        # Compute Q values as negative distances
-        q_values = -jnp.sqrt(
-            jnp.sum((sa_reprs - g_repr) ** 2, axis=-1)
-        )  # Shape: (K, batch_size)
-
-        # Select actions with highest Q values
-        best_action_idx = jnp.argmax(q_values, axis=0)  # Shape: (batch_size,)
-        best_actions = jnp.take_along_axis(
-            actions,
-            best_action_idx[None, :, None],
-            axis=0
-        )[0]  # Shape: (batch_size, action_dim)
-
-        # Step environment with best actions
-        nstate = env.step(env_state, best_actions)
-        state_extras = {x: nstate.info[x] for x in extra_fields}
-
-        return nstate, Transition(
-            observation=env_state.obs,
-            action=best_actions,
-            reward=nstate.reward,
-            discount=1 - nstate.done,
-            extras={"state_extras": state_extras},
-        )
-
-
     @jax.jit
     def get_experience(training_state, env_state, buffer_state, key):
         @jax.jit
@@ -808,9 +702,7 @@ if __name__ == "__main__":
             elif args.expl_actor == 0:
                 env_state, transition = deterministic_actor_step(training_state, env, env_state,
                                                                  extra_fields=("truncation", "seed"))
-            else:
-                env_state, transition = multi_sample_actor_step(training_state, env, env_state, current_key,
-                                                                args.expl_actor, extra_fields=("truncation", "seed"))
+
             return (env_state, next_key), transition
 
         (env_state, _), data = jax.lax.scan(f, (env_state, key), (), length=args.unroll_length)
@@ -919,55 +811,15 @@ if __name__ == "__main__":
             sa_repr = sa_encoder.apply(sa_encoder_params, obs, action)
             g_repr = g_encoder.apply(g_encoder_params, transitions.observation[:, args.obs_dim:])
 
-            if args.memory_bank:
-                new_memory_bank_state, (sa_bank, g_bank) = memory_bank.sample(
-                    training_state.memory_bank_state)  # currently just sampling another batch_size, can modify in memory_bank.py later
-                sa_repr = jnp.concatenate([sa_repr, sa_bank], axis=0)
-                g_repr = jnp.concatenate([g_repr, g_bank], axis=0)
-                new_memory_bank_state = memory_bank.insert(new_memory_bank_state, sa_repr[:args.batch_size],
-                                                           g_repr[:args.batch_size])
-            else:
-                new_memory_bank_state = training_state.memory_bank_state
+            # InfoNCE
+            logits = -jnp.sqrt(jnp.sum((sa_repr[:, None, :] - g_repr[None, :, :]) ** 2, axis=-1))  # shape = BxB
+            critic_loss = -jnp.mean(jnp.diag(logits) - jax.nn.logsumexp(logits, axis=1))
 
-            if args.batchdiv2 == 1:
-                sa_repr = jnp.concatenate(
-                    [sa_repr[:args.batch_size // 2], jax.lax.stop_gradient(sa_repr[args.batch_size // 2:])])
-                g_repr = jnp.concatenate(
-                    [g_repr[:args.batch_size // 2], jax.lax.stop_gradient(g_repr[args.batch_size // 2:])])
-            elif args.batchdiv2 == 2:
-                sa_repr = sa_repr[:args.batch_size // 2]
-                g_repr = jnp.concatenate(
-                    [g_repr[:args.batch_size // 2], jax.lax.stop_gradient(g_repr[args.batch_size // 2:])])
+            # logsumexp regularisation
+            logsumexp = jax.nn.logsumexp(logits + 1e-6, axis=1)
+            critic_loss += args.logsumexp_penalty_coeff * jnp.mean(logsumexp ** 2)
 
-            if args.mrn:
-                sym1 = sym.apply(critic_params['sym'], sa_repr)  # (B, 64)
-                sym2 = sym.apply(critic_params['sym'], g_repr)  # (B, 64)
-                dist_s = jnp.sum((sym1[:, None, :] - sym2[None, :, :]) ** 2, axis=-1) + 1e-6  # (B, B)
-
-                # Asymmetric path
-                asym1 = asym.apply(critic_params['asym'], sa_repr)  # (B, 64)
-                asym2 = asym.apply(critic_params['asym'], g_repr)  # (B, 64)
-                res = jax.nn.relu(asym1[:, None, :] - asym2[None, :, :])  # (B, B, 64)
-                dist_a = jnp.max(res, axis=-1) + 1e-6  # (B, B)
-
-                # Combining distances
-                logits = -(dist_s + dist_a)  # (B, B)
-                critic_loss = -jnp.mean(jnp.diag(logits) - jax.nn.logsumexp(logits, axis=1))  # scalar
-
-                # logsumexp regularisation
-                logsumexp = jax.nn.logsumexp(logits + 1e-6, axis=1)
-                critic_loss += args.logsumexp_penalty_coeff * jnp.mean(logsumexp ** 2)
-
-            else:
-                # InfoNCE
-                logits = -jnp.sqrt(jnp.sum((sa_repr[:, None, :] - g_repr[None, :, :]) ** 2, axis=-1))  # shape = BxB
-                critic_loss = -jnp.mean(jnp.diag(logits) - jax.nn.logsumexp(logits, axis=1))
-
-                # logsumexp regularisation
-                logsumexp = jax.nn.logsumexp(logits + 1e-6, axis=1)
-                critic_loss += args.logsumexp_penalty_coeff * jnp.mean(logsumexp ** 2)
-
-            if 0:
+            if True:
                 I = jnp.eye(logits.shape[0])
                 correct = jnp.argmax(logits, axis=1) == jnp.argmax(I, axis=1)
                 logits_pos = jnp.sum(logits * I) / jnp.sum(I)
@@ -975,6 +827,7 @@ if __name__ == "__main__":
             else:
                 I, correct, logits_pos, logits_neg = jnp.zeros(1), jnp.zeros(1), jnp.zeros(1), jnp.zeros(1)
 
+            new_memory_bank_state = training_state.memory_bank_state
             return critic_loss, (logsumexp, I, correct, logits_pos, logits_neg, new_memory_bank_state)
 
         (loss, (logsumexp, I, correct, logits_pos, logits_neg, new_memory_bank_state)), grad = jax.value_and_grad(
@@ -1029,31 +882,6 @@ if __name__ == "__main__":
         training_state = training_state.replace(
             env_steps=training_state.env_steps + args.env_steps_per_actor_step,
         )
-
-        # def collect_data():
-        #     new_env_state, new_buffer_state = get_experience(
-        #         training_state.actor_state,
-        #         env_state,
-        #         buffer_state,
-        #         experience_key1,
-        #     )
-        #     new_training_state = training_state.replace(
-        #         env_steps=training_state.env_steps + args.env_steps_per_actor_step
-        #     )
-        #     return new_training_state, new_env_state, new_buffer_state
-
-        # def skip_data_collection():
-        #     return training_state, env_state, buffer_state
-
-        # training_state, env_state, buffer_state = jax.lax.cond(
-        #     t % args.training_steps_multiplier == 0,
-        #     collect_data,
-        #     skip_data_collection
-        # )
-
-        # # sample actor-step worth of transitions
-        # buffer_state, transitions = replay_buffer.sample(buffer_state)
-        # print(f"transitions.observation.shape: {transitions.observation.shape}", flush=True)
 
         # Sample actor-step worth of transitions N times and concatenate them (NOTE: just a bandaid fix right now, currently can sample repeat data)
 
@@ -1177,23 +1005,6 @@ if __name__ == "__main__":
             key=eval_env_key,
         )
 
-    elif args.eval_actor > 1:
-        key, eval_actor_key = jax.random.split(key)
-        evaluator = CrlEvaluator(
-            # Replace deterministic_actor_step with a partial function of multi_sample_actor_step
-            lambda training_state, env, env_state, extra_fields: multi_sample_actor_step(
-                training_state,
-                env,
-                env_state,
-                eval_actor_key,  # Use dedicated key for action sampling
-                args.eval_actor,  # Use eval_actor as K parameter
-                extra_fields
-            ),
-            eval_env,
-            num_eval_envs=args.num_eval_envs,
-            episode_length=args.episode_length,
-            key=eval_env_key,
-        )
 
     training_walltime = 0
     print('starting training....', flush=True)
