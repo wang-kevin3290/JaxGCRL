@@ -124,6 +124,38 @@ U5_MAZE_EVAL = [[1, 1, 1, 1, 1, 1, 1, 1],
                 [1, G, G, G, G, G, G, 1],
                 [1, 1, 1, 1, 1, 1, 1, 1]]
 
+U6_MAZE = [[1, 1, 1, 1, 1, 1, 1],
+           [1, G, G, G, G, G, 1],
+           [1, R, 1, 1, 1, G, 1],
+           [1, 1, 1, 1, 1, G, 1],
+           [1, G, 1, 1, 1, G, 1],
+           [1, G, G, G, G, G, 1],
+           [1, 1, 1, 1, 1, 1, 1]]
+
+U6_MAZE_EVAL = [[1, 1, 1, 1, 1, 1, 1],
+           [1, 0, 0, 0, 0, 0, 1],
+           [1, R, 1, 1, 1, 0, 1],
+           [1, 1, 1, 1, 1, 0, 1],
+           [1, G, 1, 1, 1, G, 1],
+           [1, G, G, G, G, G, 1],
+           [1, 1, 1, 1, 1, 1, 1]]
+
+U7_MAZE = [[1, 1, 1, 1, 1, 1],
+           [1, G, G, G, G, 1],
+           [1, R, 1, 1, G, 1],
+           [1, 1, 1, 1, G, 1],
+           [1, G, 1, 1, G, 1],
+           [1, G, G, G, G, 1],
+           [1, 1, 1, 1, 1, 1]]
+
+U7_MAZE_EVAL = [[1, 1, 1, 1, 1, 1],
+           [1, 0, 0, 0, 0, 1],
+           [1, R, 1, 1, 0, 1],
+           [1, 1, 1, 1, 0, 1],
+           [1, G, 1, 1, G, 1],
+           [1, G, G, G, G, 1],
+           [1, 1, 1, 1, 1, 1]]
+
 # U5_MAZE_EVAL = [[1, 1, 1, 1, 1, 1, 1, 1],
 #                 [1, 0, 0, 0, 0, 0, 0, 1],
 #                 [1, R, 1, 1, 1, 1, 0, 1],
@@ -212,6 +244,14 @@ def make_maze(maze_layout_name, maze_size_scaling):
         maze_layout = U5_MAZE
     elif maze_layout_name == "u5_maze_eval":
         maze_layout = U5_MAZE_EVAL
+    elif maze_layout_name == "u6_maze":
+        maze_layout = U6_MAZE
+    elif maze_layout_name == "u6_maze_eval":
+        maze_layout = U6_MAZE_EVAL
+    elif maze_layout_name == "u7_maze":
+        maze_layout = U7_MAZE
+    elif maze_layout_name == "u7_maze_eval":
+        maze_layout = U7_MAZE_EVAL
 
     elif maze_layout_name == "big_maze":
         maze_layout = BIG_MAZE
