@@ -124,6 +124,14 @@ U5_MAZE_EVAL = [[1, 1, 1, 1, 1, 1, 1, 1],
                 [1, G, G, G, G, G, G, 1],
                 [1, 1, 1, 1, 1, 1, 1, 1]]
 
+U5_MAZE_SINGLE_EVAL = [[1, 1, 1, 1, 1, 1, 1, 1],
+                [1, 0, 0, 0, 0, 0, 0, 1],
+                [1, R, 1, 1, 1, 1, 0, 1],
+                [1, 1, 1, 1, 1, 1, 0, 1],
+                [1, G, 1, 1, 1, 1, 0, 1],
+                [1, 0, 0, 0, 0, 0, 0, 1],
+                [1, 1, 1, 1, 1, 1, 1, 1]]
+
 U6_MAZE = [[1, 1, 1, 1, 1, 1, 1],
            [1, G, G, G, G, G, 1],
            [1, R, 1, 1, 1, G, 1],
@@ -199,7 +207,9 @@ def find_robot(structure, size_scaling):
     for i in range(len(structure)):
         for j in range(len(structure[0])):
             if structure[i][j] == RESET:
+                # print(f"reset position: {i * size_scaling}, {j * size_scaling}")
                 return i * size_scaling, j * size_scaling
+            
             
 def find_goals(structure, size_scaling):
     goals = []
@@ -207,6 +217,7 @@ def find_goals(structure, size_scaling):
         for j in range(len(structure[0])):
             if structure[i][j] == GOAL:
                 goals.append([i * size_scaling, j * size_scaling])
+                # print(f"possible goal: {goals[-1]}")
 
     return jp.array(goals)
 
@@ -252,6 +263,8 @@ def make_maze(maze_layout_name, maze_size_scaling):
         maze_layout = U7_MAZE
     elif maze_layout_name == "u7_maze_eval":
         maze_layout = U7_MAZE_EVAL
+    elif maze_layout_name == "u5_maze_single_eval":
+        maze_layout = U5_MAZE_SINGLE_EVAL
 
     elif maze_layout_name == "big_maze":
         maze_layout = BIG_MAZE
