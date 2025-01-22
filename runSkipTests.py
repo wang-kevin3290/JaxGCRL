@@ -15,7 +15,7 @@ def modify_and_submit_slurm(file_name, depth, skip):
         # Replace job name by removing any trailing numbers and adding skip
         if line.startswith('#SBATCH --job-name='):
             base_name = re.sub(r'\d+$', '', line.strip())  # Remove trailing numbers
-            line = f'{base_name}{skip}\n'
+            line = f'{base_name}{depth}\n'
         # Replace DEPTH
         elif 'DEPTH=' in line:
             line = f'DEPTH={depth}           # 4, 8, 16 , 32\n'
@@ -34,14 +34,15 @@ def modify_and_submit_slurm(file_name, depth, skip):
     time.sleep(4)
 
 def main():
-    if len(sys.argv) != 4:
+    if len(sys.argv) < 4:
         print("Usage: python runTests.py <fileName> <depths> <skips>")
-        print("Example: python runTests.py humanoid '4,8,16,32' '2,3,4,8'")
+        print("Example: python runTests.py humanoid '4,8,16,32' '2,3,4,8' 'times")
         sys.exit(1)
 
     file_name = sys.argv[1]
     depths = [int(d) for d in sys.argv[2].split(',')]
     skips = [int(s) for s in sys.argv[3].split(',')]
+    times = 1 if len(sys.argv) == 4 else int(sys.argv[4])
 
     # Check if slurm file exists
     if not os.path.exists(f"{file_name}.slurm"):
@@ -49,9 +50,10 @@ def main():
         sys.exit(1)
 
     # Double loop over depths and skips
-    for skip in skips:
-        for depth in depths:
-            modify_and_submit_slurm(file_name, depth, skip)
+    for i in range(times):
+        for skip in skips:
+            for depth in depths:
+                modify_and_submit_slurm(file_name, depth, skip)
 
 if __name__ == "__main__":
     main()
