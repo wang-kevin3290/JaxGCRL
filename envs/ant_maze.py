@@ -6,7 +6,7 @@ from brax import math
 from brax.envs.base import PipelineEnv, State
 from brax.io import mjcf
 import jax
-from jax import numpy as jp
+from jax import numpy as jnp
 import mujoco
 import xml.etree.ElementTree as ET
 
@@ -16,7 +16,6 @@ import xml.etree.ElementTree as ET
 
 RESET = R = 'r'
 GOAL = G = 'g'
-
 
 U_MAZE = [[1, 1, 1, 1, 1],
           [1, R, G, G, 1],
@@ -29,8 +28,6 @@ U_MAZE_EVAL = [[1, 1, 1, 1, 1],
                [1, 1, 1, 0, 1],
                [1, G, G, G, 1],
                [1, 1, 1, 1, 1]]
-
-
 
 BIG_MAZE = [[1, 1, 1, 1, 1, 1, 1, 1],
             [1, R, G, 1, 1, G, G, 1],
@@ -60,8 +57,6 @@ HARDEST_MAZE = [[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
                 [1, G, G, 1, G, G, G, 1, G, G, G, 1],
                 [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]]
 
-
-
 MAZE_HEIGHT = 0.5
 
 
@@ -72,8 +67,9 @@ def find_starts(structure, size_scaling):
             if structure[i][j] == RESET:
                 starts.append([i * size_scaling, j * size_scaling])
 
-    return jp.array(starts)
-            
+    return jnp.array(starts)
+
+
 def find_goals(structure, size_scaling):
     goals = []
     for i in range(len(structure)):
@@ -81,7 +77,8 @@ def find_goals(structure, size_scaling):
             if structure[i][j] == GOAL:
                 goals.append([i * size_scaling, j * size_scaling])
 
-    return jp.array(goals)
+    return jnp.array(goals)
+
 
 # Create a xml with maze and a list of possible goal positions
 def make_maze(maze_layout_name, maze_size_scaling):
@@ -97,7 +94,7 @@ def make_maze(maze_layout_name, maze_size_scaling):
         maze_layout = HARDEST_MAZE
     else:
         raise ValueError(f"Unknown maze layout: {maze_layout_name}")
-    
+
     xml_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'assets', "ant_maze.xml")
 
     possible_starts = find_starts(maze_layout, maze_size_scaling)
@@ -114,11 +111,11 @@ def make_maze(maze_layout_name, maze_size_scaling):
                     worldbody, "geom",
                     name="block_%d_%d" % (i, j),
                     pos="%f %f %f" % (i * maze_size_scaling,
-                                    j * maze_size_scaling,
-                                    MAZE_HEIGHT / 2 * maze_size_scaling),
+                                      j * maze_size_scaling,
+                                      MAZE_HEIGHT / 2 * maze_size_scaling),
                     size="%f %f %f" % (0.5 * maze_size_scaling,
-                                        0.5 * maze_size_scaling,
-                                        MAZE_HEIGHT / 2 * maze_size_scaling),
+                                       0.5 * maze_size_scaling,
+                                       MAZE_HEIGHT / 2 * maze_size_scaling),
                     type="box",
                     material="",
                     contype="1",
@@ -128,27 +125,27 @@ def make_maze(maze_layout_name, maze_size_scaling):
 
     tree = tree.getroot()
     xml_string = ET.tostring(tree)
-    
-    return xml_string, possible_starts, possible_goals
 
+    return xml_string, possible_starts, possible_goals
 
 
 class AntMaze(PipelineEnv):
     def __init__(
-        self,
-        ctrl_cost_weight=0.5,
-        use_contact_forces=False,
-        contact_cost_weight=5e-4,
-        healthy_reward=1.0,
-        terminate_when_unhealthy=True,
-        healthy_z_range=(0.2, 1.0),
-        contact_force_range=(-1.0, 1.0),
-        reset_noise_scale=0.1,
-        exclude_current_positions_from_observation=False,
-        backend="generalized",
-        maze_layout_name="u_maze",
-        maze_size_scaling=4.0,
-        **kwargs,
+            self,
+            ctrl_cost_weight=0.5,
+            use_contact_forces=False,
+            contact_cost_weight=5e-4,
+            healthy_reward=1.0,
+            terminate_when_unhealthy=True,
+            healthy_z_range=(0.2, 1.0),
+            contact_force_range=(-1.0, 1.0),
+            reset_noise_scale=0.1,
+            exclude_current_positions_from_observation=False,
+            backend="generalized",
+            maze_layout_name="u_maze",
+            maze_size_scaling=4.0,
+            dense_reward: bool = False,
+            **kwargs,
     ):
         xml_string, possible_starts, possible_goals = make_maze(maze_layout_name, maze_size_scaling)
 
@@ -176,7 +173,7 @@ class AntMaze(PipelineEnv):
             # TODO: does the same actuator strength work as in spring
             sys = sys.replace(
                 actuator=sys.actuator.replace(
-                    gear=200 * jp.ones_like(sys.actuator.gear)
+                    gear=200 * jnp.ones_like(sys.actuator.gear)
                 )
             )
 
@@ -195,9 +192,10 @@ class AntMaze(PipelineEnv):
         self._exclude_current_positions_from_observation = (
             exclude_current_positions_from_observation
         )
-        
+        self.dense_reward = dense_reward
         self.state_dim = 29
-        self.goal_indices = jp.array([0, 1])
+        self.goal_indices = jnp.array([0, 1])
+        self.goal_dist = 0.5
 
         if self._use_contact_forces:
             raise NotImplementedError("use_contact_forces not implemented.")
@@ -225,7 +223,7 @@ class AntMaze(PipelineEnv):
         pipeline_state = self.pipeline_init(q, qd)
         obs = self._get_obs(pipeline_state)
 
-        reward, done, zero = jp.zeros(3)
+        reward, done, zero = jnp.zeros(3)
         metrics = {
             "reward_forward": zero,
             "reward_survive": zero,
@@ -253,7 +251,7 @@ class AntMaze(PipelineEnv):
         pipeline_state = self.pipeline_step(pipeline_state0, action)
 
         if "steps" in state.info.keys():
-            seed = state.info["seed"] + jp.where(state.info["steps"], 0, 1)
+            seed = state.info["seed"] + jnp.where(state.info["steps"], 0, 1)
         else:
             seed = state.info["seed"]
         info = {"seed": seed}
@@ -262,22 +260,30 @@ class AntMaze(PipelineEnv):
         forward_reward = velocity[0]
 
         min_z, max_z = self._healthy_z_range
-        is_healthy = jp.where(pipeline_state.x.pos[0, 2] < min_z, 0.0, 1.0)
-        is_healthy = jp.where(pipeline_state.x.pos[0, 2] > max_z, 0.0, is_healthy)
+        is_healthy = jnp.where(pipeline_state.x.pos[0, 2] < min_z, 0.0, 1.0)
+        is_healthy = jnp.where(pipeline_state.x.pos[0, 2] > max_z, 0.0, is_healthy)
         if self._terminate_when_unhealthy:
             healthy_reward = self._healthy_reward
         else:
             healthy_reward = self._healthy_reward * is_healthy
-        ctrl_cost = self._ctrl_cost_weight * jp.sum(jp.square(action))
+        ctrl_cost = self._ctrl_cost_weight * jnp.sum(jnp.square(action))
         contact_cost = 0.0
 
+        old_obs = self._get_obs(pipeline_state0)
+        old_dist = jnp.linalg.norm(old_obs[:2] - old_obs[-2:])
         obs = self._get_obs(pipeline_state)
+        dist = jnp.linalg.norm(obs[:2] - obs[-2:])
+        vel_to_target = (old_dist - dist) / self.dt
+        success = jnp.array(dist < self.goal_dist, dtype=float)
+        success_easy = jnp.array(dist < 2., dtype=float)
+
+        if self.dense_reward:
+            reward = 10 * vel_to_target + healthy_reward - ctrl_cost - contact_cost
+        else:
+            reward = success
+
         done = 1.0 - is_healthy if self._terminate_when_unhealthy else 0.0
 
-        dist = jp.linalg.norm(obs[:2] - obs[-2:])
-        success = jp.array(dist < 0.5, dtype=float)
-        success_easy = jp.array(dist < 2., dtype=float)
-        reward = -dist + healthy_reward - ctrl_cost - contact_cost
         state.metrics.update(
             reward_forward=forward_reward,
             reward_survive=healthy_reward,
@@ -308,13 +314,13 @@ class AntMaze(PipelineEnv):
         if self._exclude_current_positions_from_observation:
             qpos = qpos[2:]
 
-        return jp.concatenate([qpos] + [qvel] + [target_pos])
+        return jnp.concatenate([qpos] + [qvel] + [target_pos])
 
     def _random_target(self, rng: jax.Array) -> jax.Array:
         """Returns a random target location chosen from possibilities specified in the maze layout."""
         idx = jax.random.randint(rng, (1,), 0, len(self.possible_goals))
-        return jp.array(self.possible_goals[idx])[0]
+        return jnp.array(self.possible_goals[idx])[0]
 
     def _random_start(self, rng: jax.Array) -> jax.Array:
         idx = jax.random.randint(rng, (1,), 0, len(self.possible_starts))
-        return jp.array(self.possible_starts[idx])[0]
+        return jnp.array(self.possible_starts[idx])[0]
