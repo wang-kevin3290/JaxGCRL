@@ -164,6 +164,7 @@ def make_policy_network(
   if not clean_jax_arch:
     policy_module = MLP(layer_sizes=list(hidden_layer_sizes) + [param_size], activation=activation, kernel_init=kernel_init, use_layer_norm=layer_norm, skip_connections=skip_connections)
   else:
+    print(f"using depth {len(hidden_layer_sizes) - 1}")
     assert all(layer_size == hidden_layer_sizes[0] for layer_size in hidden_layer_sizes[:-1]), "All layers except the last must be the same size"
     policy_module = MLPCleanJax(network_width=hidden_layer_sizes[0], network_depth=len(hidden_layer_sizes) - 1, output_size=param_size, skip_connections=skip_connections)
 

@@ -50,16 +50,16 @@ def create_parser():
     parser.add_argument("--project_name", type=str, default="crl", help="Name of the wandb project of experiment")
     parser.add_argument("--num_timesteps", type=int, default=1000000, help="Number of training timesteps")
     parser.add_argument("--max_replay_size", type=int, default=10000, help="Maximum size of replay buffer")
-    parser.add_argument("--min_replay_size", type=int, default=8192, help="Minimum size of replay buffer")
+    parser.add_argument("--min_replay_size", type=int, default=1000, help="Minimum size of replay buffer")
     parser.add_argument("--num_evals", type=int, default=50, help="Total number of evaluations")
-    parser.add_argument("--episode_length", type=int, default=50, help="Maximum length of each episode")
+    parser.add_argument("--episode_length", type=int, default=1001, help="Maximum length of each episode")
     parser.add_argument("--action_repeat", type=int, default=2, help="Number of times to repeat each action")
     parser.add_argument("--discounting", type=float, default=0.997, help="Discounting factor for rewards")
-    parser.add_argument("--num_envs", type=int, default=256, help="Number of environments")
+    parser.add_argument("--num_envs", type=int, default=512, help="Number of environments")
     parser.add_argument("--num_eval_envs", type=int, default=256, help="Number of evaluation environments")
     parser.add_argument("--batch_size", type=int, default=256, help="Batch size for training")
     parser.add_argument("--seed", type=int, default=0, help="Seed for reproducibility")
-    parser.add_argument("--unroll_length", type=int, default=50, help="Length of the env unroll")
+    parser.add_argument("--unroll_length", type=int, default=62, help="Length of the env unroll")
     parser.add_argument("--train_step_multiplier", type=int, default=1, help="Multiplier of total number of gradient steps resulting from other args.",)
     parser.add_argument("--env_name", type=str, default="reacher", help="Name of the environment to train on")
     parser.add_argument("--log_wandb", default=False, action="store_true", help="Whether to log to wandb")
@@ -86,7 +86,7 @@ def create_parser():
     return parser
 
 
-def create_env(env_name: str, backend: str = None, **kwargs) -> object:
+def create_env(env_name: str, backend: str = None, use_dense_reward=False, **kwargs) -> object:
     """
     This function creates and returns an appropriate environment object based on the specified environment name and
     backend.
@@ -104,7 +104,7 @@ def create_env(env_name: str, backend: str = None, **kwargs) -> object:
     if env_name == "reacher":
         env = Reacher(backend=backend or "generalized")
     elif env_name == "ant":
-        env = Ant(backend=backend or "spring")
+        env = Ant(backend=backend or "spring", dense_reward=use_dense_reward)
     elif env_name == "ant_random_start":
         env = Ant(backend=backend or "spring", randomize_start=True)
     elif env_name == "ant_ball":
@@ -118,7 +118,7 @@ def create_env(env_name: str, backend: str = None, **kwargs) -> object:
             env = AntBallMaze(backend=backend or "spring", maze_layout_name=env_name[9:])
         elif "ant" in env_name:
             # Possible env_name = {'ant_u_maze', 'ant_big_maze', 'ant_hardest_maze'}
-            env = AntMaze(backend=backend or "spring", maze_layout_name=env_name[4:])
+            env = AntMaze(backend=backend or "spring", maze_layout_name=env_name[4:], dense_reward=use_dense_reward)
         elif "humanoid" in env_name:
             # Possible env_name = {'humanoid_u_maze', 'humanoid_big_maze', 'humanoid_hardest_maze'}
             env = HumanoidMaze(backend=backend or "spring", maze_layout_name=env_name[9:])
@@ -136,7 +136,7 @@ def create_env(env_name: str, backend: str = None, **kwargs) -> object:
     elif env_name == "pusher2":
         env = Pusher2(backend=backend or "generalized")
     elif env_name == "humanoid":
-        env = Humanoid(backend=backend or "spring")
+        env = Humanoid(backend=backend or "spring", dense_reward=use_dense_reward)
     elif env_name == "arm_reach":
         env = ArmReach(backend=backend or "mjx")
     elif env_name == "arm_grasp":

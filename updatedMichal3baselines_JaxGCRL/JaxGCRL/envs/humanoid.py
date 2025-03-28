@@ -33,6 +33,7 @@ class Humanoid(PipelineEnv):
     ):
         path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "assets", "humanoid.xml")
         sys = mjcf.load(path)
+        print(f"dense_reward humanoid: {dense_reward}", flush=True)
 
         n_frames = 5
 
