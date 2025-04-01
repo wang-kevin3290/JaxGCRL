@@ -69,7 +69,7 @@ class MLP(linen.Module):
     kernel_init: Initializer = jax.nn.initializers.lecun_uniform()
     activate_final: bool = False
     bias: bool = True
-    use_layer_norm: bool = False
+    use_layer_norm: bool = True
     skip_connections: int = 0
 
     @linen.compact
