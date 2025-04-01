@@ -267,6 +267,7 @@ def train(
     visualization_interval: int = 5,
     h_dim: int = 256,
     n_hidden: int = 4,
+    clean_jax_arch: int = 1,
 ):
     """SAC training."""
     process_id = jax.process_index()
