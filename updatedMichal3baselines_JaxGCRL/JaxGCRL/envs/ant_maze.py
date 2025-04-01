@@ -18,57 +18,241 @@ RESET = R = "r"
 GOAL = G = "g"
 
 
-U_MAZE = [
-    [1, 1, 1, 1, 1],
-    [1, R, G, G, 1],
-    [1, 1, 1, G, 1],
-    [1, G, G, G, 1],
-    [1, 1, 1, 1, 1],
-]
+# U_MAZE = [
+#     [1, 1, 1, 1, 1],
+#     [1, R, G, G, 1],
+#     [1, 1, 1, G, 1],
+#     [1, G, G, G, 1],
+#     [1, 1, 1, 1, 1],
+# ]
 
-U_MAZE_EVAL = [
-    [1, 1, 1, 1, 1],
-    [1, R, 0, 0, 1],
-    [1, 1, 1, 0, 1],
-    [1, G, G, G, 1],
-    [1, 1, 1, 1, 1],
-]
+# U_MAZE_EVAL = [
+#     [1, 1, 1, 1, 1],
+#     [1, R, 0, 0, 1],
+#     [1, 1, 1, 0, 1],
+#     [1, G, G, G, 1],
+#     [1, 1, 1, 1, 1],
+# ]
 
 
-BIG_MAZE = [
-    [1, 1, 1, 1, 1, 1, 1, 1],
-    [1, R, G, 1, 1, G, G, 1],
-    [1, G, G, 1, G, G, G, 1],
-    [1, 1, G, G, G, 1, 1, 1],
-    [1, G, G, 1, G, G, G, 1],
-    [1, G, 1, G, G, 1, G, 1],
-    [1, G, G, G, 1, G, G, 1],
-    [1, 1, 1, 1, 1, 1, 1, 1],
-]
+# BIG_MAZE = [
+#     [1, 1, 1, 1, 1, 1, 1, 1],
+#     [1, R, G, 1, 1, G, G, 1],
+#     [1, G, G, 1, G, G, G, 1],
+#     [1, 1, G, G, G, 1, 1, 1],
+#     [1, G, G, 1, G, G, G, 1],
+#     [1, G, 1, G, G, 1, G, 1],
+#     [1, G, G, G, 1, G, G, 1],
+#     [1, 1, 1, 1, 1, 1, 1, 1],
+# ]
 
-BIG_MAZE_EVAL = [
-    [1, 1, 1, 1, 1, 1, 1, 1],
-    [1, R, 0, 1, 1, G, G, 1],
-    [1, 0, 0, 1, 0, G, G, 1],
-    [1, 1, 0, 0, 0, 1, 1, 1],
-    [1, 0, 0, 1, 0, 0, 0, 1],
-    [1, 0, 1, G, 0, 1, G, 1],
-    [1, 0, G, G, 1, G, G, 1],
-    [1, 1, 1, 1, 1, 1, 1, 1],
-]
+# BIG_MAZE_EVAL = [
+#     [1, 1, 1, 1, 1, 1, 1, 1],
+#     [1, R, 0, 1, 1, G, G, 1],
+#     [1, 0, 0, 1, 0, G, G, 1],
+#     [1, 1, 0, 0, 0, 1, 1, 1],
+#     [1, 0, 0, 1, 0, 0, 0, 1],
+#     [1, 0, 1, G, 0, 1, G, 1],
+#     [1, 0, G, G, 1, G, G, 1],
+#     [1, 1, 1, 1, 1, 1, 1, 1],
+# ]
 
-HARDEST_MAZE = [
-    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-    [1, R, G, G, G, 1, G, G, G, G, G, 1],
-    [1, G, 1, 1, G, 1, G, 1, G, 1, G, 1],
-    [1, G, G, G, G, G, G, 1, G, G, G, 1],
-    [1, G, 1, 1, 1, 1, G, 1, 1, 1, G, 1],
-    [1, G, G, 1, G, 1, G, G, G, G, G, 1],
-    [1, 1, G, 1, G, 1, G, 1, G, 1, 1, 1],
-    [1, G, G, 1, G, G, G, 1, G, G, G, 1],
-    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-]
+# HARDEST_MAZE = [
+#     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+#     [1, R, G, G, G, 1, G, G, G, G, G, 1],
+#     [1, G, 1, 1, G, 1, G, 1, G, 1, G, 1],
+#     [1, G, G, G, G, G, G, 1, G, G, G, 1],
+#     [1, G, 1, 1, 1, 1, G, 1, 1, 1, G, 1],
+#     [1, G, G, 1, G, 1, G, G, G, G, G, 1],
+#     [1, 1, G, 1, G, 1, G, 1, G, 1, 1, 1],
+#     [1, G, G, 1, G, G, G, 1, G, G, G, 1],
+#     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+# ]
 
+
+# MAZE_HEIGHT = 0.5
+U_MAZE = [[1, 1, 1, 1, 1],
+          [1, R, G, G, 1],
+          [1, 1, 1, G, 1],
+          [1, G, G, G, 1],
+          [1, 1, 1, 1, 1]]
+
+U_MAZE_EVAL = [[1, 1, 1, 1, 1],
+               [1, R, 0, 0, 1],
+               [1, 1, 1, 0, 1],
+               [1, G, G, G, 1],
+               [1, 1, 1, 1, 1]]
+
+U_MAZE_SINGLE_EVAL = [[1, 1, 1, 1, 1],
+               [1, R, 0, 0, 1],
+               [1, 1, 1, 0, 1],
+               [1, G, 0, 0, 1],
+               [1, 1, 1, 1, 1]]
+
+U_MAZE_EVAL_1f2f3f4f5f = [[1, 1, 1, 1, 1],
+               [1, R, G, G, 1],
+               [1, 1, 1, G, 1],
+               [1, 0, G, G, 1],
+               [1, 1, 1, 1, 1]]
+
+U_MAZE_EVAL_1f2f3f4f = [[1, 1, 1, 1, 1],
+               [1, R, G, G, 1],
+               [1, 1, 1, G, 1],
+               [1, 0, 0, G, 1],
+               [1, 1, 1, 1, 1]]
+
+U_MAZE_EVAL_1f2f3f = [[1, 1, 1, 1, 1],
+               [1, R, G, G, 1],
+               [1, 1, 1, G, 1],
+               [1, 0, 0, 0, 1],
+               [1, 1, 1, 1, 1]]
+
+U_MAZE_EVAL_5f6f = [[1, 1, 1, 1, 1],
+               [1, R, 0, 0, 1],
+               [1, 1, 1, 0, 1],
+               [1, G, G, 0, 1],
+               [1, 1, 1, 1, 1]]
+
+
+U2_MAZE = [[1, 1, 1, 1, 1, 1],
+           [1, R, G, G, G, 1],
+           [1, 1, 1, 1, G, 1],
+           [1, G, G, G, G, 1],
+           [1, 1, 1, 1, 1, 1]]
+
+U2_MAZE_EVAL = [[1, 1, 1, 1, 1, 1],
+                [1, R, 0, 0, 0, 1],
+                [1, 1, 1, 1, 0, 1],
+                [1, G, G, G, G, 1],
+                [1, 1, 1, 1, 1, 1]]
+
+U3_MAZE = [[1, 1, 1, 1, 1, 1, 1],
+           [1, R, G, G, G, G, 1],
+           [1, 1, 1, 1, 1, G, 1],
+           [1, G, G, G, G, G, 1],
+           [1, 1, 1, 1, 1, 1, 1]]
+
+U3_MAZE_EVAL = [[1, 1, 1, 1, 1, 1, 1],
+                [1, R, 0, 0, 0, 0, 1],
+                [1, 1, 1, 1, 1, 0, 1],
+                [1, G, G, G, G, G, 1],
+                [1, 1, 1, 1, 1, 1, 1]]
+
+U3_MAZE_SINGLE_EVAL = [[1, 1, 1, 1, 1, 1, 1],
+                [1, R, 0, 0, 0, 0, 1],
+                [1, 1, 1, 1, 1, 0, 1],
+                [1, G, 0, 0, 0, 0, 1],
+                [1, 1, 1, 1, 1, 1, 1]]
+
+U4_MAZE = [[1, 1, 1, 1, 1],
+           [1, G, G, G, 1],
+           [1, R, 1, G, 1],
+           [1, 1, 1, G, 1],
+           [1, G, 1, G, 1],
+           [1, G, G, G, 1],
+           [1, 1, 1, 1, 1]]
+
+U4_MAZE_EVAL = [[1, 1, 1, 1, 1],
+                [1, 0, 0, 0, 1],
+                [1, R, 1, 0, 1],
+                [1, 1, 1, 0, 1],
+                [1, G, 1, 0, 1],
+                [1, G, G, G, 1],
+                [1, 1, 1, 1, 1]]
+
+
+U5_MAZE = [[1, 1, 1, 1, 1, 1, 1, 1],
+           [1, G, G, G, G, G, G, 1],
+           [1, R, 1, 1, 1, 1, G, 1],
+           [1, 1, 1, 1, 1, 1, G, 1],
+           [1, G, 1, 1, 1, 1, G, 1],
+           [1, G, G, G, G, G, G, 1],
+           [1, 1, 1, 1, 1, 1, 1, 1]]
+
+U5_MAZE_EVAL = [[1, 1, 1, 1, 1, 1, 1, 1],
+                [1, 0, 0, 0, 0, 0, 0, 1],
+                [1, R, 1, 1, 1, 1, 0, 1],
+                [1, 1, 1, 1, 1, 1, 0, 1],
+                [1, G, 1, 1, 1, 1, G, 1],
+                [1, G, G, G, G, G, G, 1],
+                [1, 1, 1, 1, 1, 1, 1, 1]]
+
+U5_MAZE_SINGLE_EVAL = [[1, 1, 1, 1, 1, 1, 1, 1],
+                [1, 0, 0, 0, 0, 0, 0, 1],
+                [1, R, 1, 1, 1, 1, 0, 1],
+                [1, 1, 1, 1, 1, 1, 0, 1],
+                [1, G, 1, 1, 1, 1, 0, 1],
+                [1, 0, 0, 0, 0, 0, 0, 1],
+                [1, 1, 1, 1, 1, 1, 1, 1]]
+
+U6_MAZE = [[1, 1, 1, 1, 1, 1, 1],
+           [1, G, G, G, G, G, 1],
+           [1, R, 1, 1, 1, G, 1],
+           [1, 1, 1, 1, 1, G, 1],
+           [1, G, 1, 1, 1, G, 1],
+           [1, G, G, G, G, G, 1],
+           [1, 1, 1, 1, 1, 1, 1]]
+
+U6_MAZE_EVAL = [[1, 1, 1, 1, 1, 1, 1],
+           [1, 0, 0, 0, 0, 0, 1],
+           [1, R, 1, 1, 1, 0, 1],
+           [1, 1, 1, 1, 1, 0, 1],
+           [1, G, 1, 1, 1, G, 1],
+           [1, G, G, G, G, G, 1],
+           [1, 1, 1, 1, 1, 1, 1]]
+
+U7_MAZE = [[1, 1, 1, 1, 1, 1],
+           [1, G, G, G, G, 1],
+           [1, R, 1, 1, G, 1],
+           [1, 1, 1, 1, G, 1],
+           [1, G, 1, 1, G, 1],
+           [1, G, G, G, G, 1],
+           [1, 1, 1, 1, 1, 1]]
+
+U7_MAZE_EVAL = [[1, 1, 1, 1, 1, 1],
+           [1, 0, 0, 0, 0, 1],
+           [1, R, 1, 1, 0, 1],
+           [1, 1, 1, 1, 0, 1],
+           [1, G, 1, 1, G, 1],
+           [1, G, G, G, G, 1],
+           [1, 1, 1, 1, 1, 1]]
+
+# U5_MAZE_EVAL = [[1, 1, 1, 1, 1, 1, 1, 1],
+#                 [1, 0, 0, 0, 0, 0, 0, 1],
+#                 [1, R, 1, 1, 1, 1, 0, 1],
+#                 [1, 1, 1, 1, 1, 1, 0, 1],
+#                 [1, G, 1, 1, 1, 1, 0, 1],
+#                 [1, G, 0, 0, 0, G, G, 1],
+#                 [1, 1, 1, 1, 1, 1, 1, 1]]
+
+
+BIG_MAZE = [[1, 1, 1, 1, 1, 1, 1, 1],
+            [1, R, G, 1, 1, G, G, 1],
+            [1, G, G, 1, G, G, G, 1],
+            [1, 1, G, G, G, 1, 1, 1],
+            [1, G, G, 1, G, G, G, 1],
+            [1, G, 1, G, G, 1, G, 1],
+            [1, G, G, G, 1, G, G, 1],
+            [1, 1, 1, 1, 1, 1, 1, 1]]
+
+BIG_MAZE_EVAL = [[1, 1, 1, 1, 1, 1, 1, 1],
+                 [1, R, 0, 1, 1, G, G, 1],
+                 [1, 0, 0, 1, 0, 0, G, 1],
+                 [1, 1, 0, 0, 0, 1, 1, 1],
+                 [1, 0, 0, 1, 0, 0, 0, 1],
+                 [1, 0, 1, G, 0, 1, G, 1],
+                 [1, 0, G, G, 1, G, G, 1],
+                 [1, 1, 1, 1, 1, 1, 1, 1]]
+
+HARDEST_MAZE = [[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+                [1, R, G, G, G, 1, G, G, G, G, G, 1],
+                [1, G, 1, 1, G, 1, G, 1, G, 1, G, 1],
+                [1, G, G, G, G, G, G, 1, G, G, G, 1],
+                [1, G, 1, 1, 1, 1, G, 1, 1, 1, G, 1],
+                [1, G, G, 1, G, 1, G, G, G, G, G, 1],
+                [1, 1, G, 1, G, 1, G, 1, G, 1, 1, 1],
+                [1, G, G, 1, G, G, G, 1, G, G, G, 1],
+                [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]]
 
 MAZE_HEIGHT = 0.5
 
@@ -94,11 +278,63 @@ def find_goals(structure, size_scaling):
 
 
 # Create a xml with maze and a list of possible goal positions
+# def make_maze(maze_layout_name, maze_size_scaling):
+#     if maze_layout_name == "u_maze":
+#         maze_layout = U_MAZE
+#     elif maze_layout_name == "u_maze_eval":
+#         maze_layout = U_MAZE_EVAL
+#     elif maze_layout_name == "big_maze":
+#         maze_layout = BIG_MAZE
+#     elif maze_layout_name == "big_maze_eval":
+#         maze_layout = BIG_MAZE_EVAL
+#     elif maze_layout_name == "hardest_maze":
+#         maze_layout = HARDEST_MAZE
+#     else:
+#         raise ValueError(f"Unknown maze layout: {maze_layout_name}")
 def make_maze(maze_layout_name, maze_size_scaling):
     if maze_layout_name == "u_maze":
         maze_layout = U_MAZE
     elif maze_layout_name == "u_maze_eval":
         maze_layout = U_MAZE_EVAL
+    elif maze_layout_name == "u_maze_single_eval":
+        maze_layout = U_MAZE_SINGLE_EVAL
+    elif maze_layout_name == "u_maze_eval_1f2f3f4f5f":
+        maze_layout = U_MAZE_EVAL_1f2f3f4f5f
+    elif maze_layout_name == "u_maze_eval_1f2f3f4f":
+        maze_layout = U_MAZE_EVAL_1f2f3f4f
+    elif maze_layout_name == "u_maze_eval_1f2f3f":
+        maze_layout = U_MAZE_EVAL_1f2f3f
+    elif maze_layout_name == "u_maze_eval_5f6f":
+        maze_layout = U_MAZE_EVAL_5f6f
+    elif maze_layout_name == "u2_maze":
+        maze_layout = U2_MAZE
+    elif maze_layout_name == "u2_maze_eval":
+        maze_layout = U2_MAZE_EVAL
+    elif maze_layout_name == "u3_maze":
+        maze_layout = U3_MAZE
+    elif maze_layout_name == "u3_maze_eval":
+        maze_layout = U3_MAZE_EVAL
+    elif maze_layout_name == "u3_maze_single_eval":
+        maze_layout = U3_MAZE_SINGLE_EVAL
+    elif maze_layout_name == "u4_maze":
+        maze_layout = U4_MAZE
+    elif maze_layout_name == "u4_maze_eval":
+        maze_layout = U4_MAZE_EVAL
+    elif maze_layout_name == "u5_maze":
+        maze_layout = U5_MAZE
+    elif maze_layout_name == "u5_maze_eval":
+        maze_layout = U5_MAZE_EVAL
+    elif maze_layout_name == "u6_maze":
+        maze_layout = U6_MAZE
+    elif maze_layout_name == "u6_maze_eval":
+        maze_layout = U6_MAZE_EVAL
+    elif maze_layout_name == "u7_maze":
+        maze_layout = U7_MAZE
+    elif maze_layout_name == "u7_maze_eval":
+        maze_layout = U7_MAZE_EVAL
+    elif maze_layout_name == "u5_maze_single_eval":
+        maze_layout = U5_MAZE_SINGLE_EVAL
+
     elif maze_layout_name == "big_maze":
         maze_layout = BIG_MAZE
     elif maze_layout_name == "big_maze_eval":

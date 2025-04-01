@@ -328,7 +328,7 @@ def train(
     if normalize_observations:
         normalize_fn = running_statistics.normalize
     sac_network = network_factory(
-        observation_size=obs_size, action_size=action_size, preprocess_observations_fn=normalize_fn, hidden_layer_sizes=[h_dim] * n_hidden
+        observation_size=obs_size, action_size=action_size, preprocess_observations_fn=normalize_fn, hidden_layer_sizes=[h_dim] * n_hidden, clean_jax_arch=clean_jax_arch
     )
     make_policy = sac_networks.make_inference_fn(sac_network)
 

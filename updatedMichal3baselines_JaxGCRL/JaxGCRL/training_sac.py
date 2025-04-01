@@ -63,7 +63,8 @@ def main(args):
         seed=args.seed,
         eval_env=eval_env,
         h_dim=args.h_dim,
-        n_hidden=args.n_hidden
+        n_hidden=args.n_hidden,
+        clean_jax_arch=args.clean_jax_arch
     )
 
     metrics_to_collect = [

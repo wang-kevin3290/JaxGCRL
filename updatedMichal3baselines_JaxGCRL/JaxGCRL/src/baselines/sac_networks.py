@@ -36,6 +36,31 @@ class SACNetworks:
   q_network: networks.FeedForwardNetwork
   parametric_action_distribution: distribution.ParametricDistribution
   
+class MLPOrig(linen.Module):
+    """MLP module."""
+    layer_sizes: Sequence[int]
+    activation: ActivationFn = linen.relu
+    kernel_init: Initializer = jax.nn.initializers.lecun_uniform()
+    activate_final: bool = False
+    bias: bool = True
+    use_layer_norm: bool = False
+    @linen.compact
+    def __call__(self, data: jnp.ndarray):
+        hidden = data
+        for i, hidden_size in enumerate(self.layer_sizes):
+            hidden = linen.Dense(
+                hidden_size,
+                name=f"hidden_{i}",
+                kernel_init=self.kernel_init,
+                use_bias=self.bias,
+            )(hidden)
+            if i != len(self.layer_sizes) - 1 or self.activate_final:
+                if self.use_layer_norm:
+                    hidden = linen.LayerNorm()(hidden)
+                hidden = self.activation(hidden)
+        return hidden
+
+  
 class MLP(linen.Module):
     """MLP module."""
 
@@ -49,6 +74,7 @@ class MLP(linen.Module):
 
     @linen.compact
     def __call__(self, data: jnp.ndarray):
+        print(f"USING MLP: use_layer_norm={self.use_layer_norm}, skip_connections={self.skip_connections}, activate_final={self.activate_final}")
         hidden = data
         for i, hidden_size in enumerate(self.layer_sizes[:-1]):
             hidden = linen.Dense(hidden_size, name=f"hidden_{i}", kernel_init=self.kernel_init, use_bias=self.bias)(hidden)
@@ -78,7 +104,7 @@ class MLPCleanJax(linen.Module):
     skip_connections: int = 0
     use_relu: int = 0
     @linen.compact
-    def __call__(self, data: jnp.ndarray):
+    def __call__(self, data: jnp.ndarray):        
         x = data
         lecun_unfirom = variance_scaling(1/3, "fan_in", "uniform")
         bias_init = linen.initializers.zeros
