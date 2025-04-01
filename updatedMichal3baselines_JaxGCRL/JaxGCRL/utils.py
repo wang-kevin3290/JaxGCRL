@@ -83,7 +83,7 @@ def create_parser():
     parser.add_argument('--use_her', default=False, action="store_true", help="Whether to use HER for SAC")
     parser.add_argument('--visualization_interval', type=int, default=5, help="Number of evals between each visualization of trajectories")
     parser.add_argument('--alg', type=str, default='crl', help="Algorithm to use")
-    parser.add_argument('--clean_jax_arch', default=False, action="store_true", help="Whether to use clean JAX architecture for SAC")
+    parser.add_argument('--clean_jax_arch', type=int, default=1, help="Whether to use clean JAX architecture for SAC")
     return parser
 
 
