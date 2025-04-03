@@ -64,7 +64,7 @@ def create_parser():
     parser.add_argument('--disable_entropy_actor', default=False, action="store_true", help="Whether to disable entropy in actor")
     parser.add_argument('--eval_env', type=str, default=None, help="Whether to use separate environment for evaluation")
     parser.add_argument("--h_dim", type=int, default=256, help="Width of hidden layers")
-    parser.add_argument("--n_hidden", type=int, default=2, help="Number of hidden layers")
+    parser.add_argument("--n_hidden", type=int, default=4, help="Number of hidden layers")
     parser.add_argument('--repr_dim', type=int, default=64, help="Dimension of the representation")
     parser.add_argument('--use_dense_reward', default=False, action="store_true", help="Whether to use sparse reward in env")
     parser.add_argument('--use_her', default=False, action="store_true", help="Whether to use HER for SAC")
