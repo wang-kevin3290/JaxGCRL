@@ -258,8 +258,7 @@ def make_policy_network(
     policy_module = MLP(
         layer_sizes=list(hidden_layer_sizes) + [param_size],
         activation=activation,
-        kernel_init=kernel_init,
-        layer_norm=layer_norm)
+        kernel_init=kernel_init) #manually removed layer_norm, it was set to false anyway
 
     def apply(processor_params, policy_params, obs):
         obs = preprocess_observations_fn(obs, processor_params)
