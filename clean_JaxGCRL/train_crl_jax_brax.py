@@ -34,8 +34,8 @@ class Args:
     cuda: bool = True
     track: bool = True
     wandb_project_name: str = "clean_JaxGCRL_test"
-    wandb_entity: str = 'wang-kevin3290-princeton-university'
-    wandb_mode: str = 'offline'
+    wandb_entity: str = 'cl-probing'
+    wandb_mode: str = 'online'
     wandb_dir: str = '.'
     wandb_group: str = '.'
     capture_vis: bool = True

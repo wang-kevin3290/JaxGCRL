@@ -34,7 +34,7 @@ class Args:
     torch_deterministic: bool = True
     cuda: bool = True
     track: bool = True
-    wandb_project_name: str = "clean_JaxGCRL_test"
+    wandb_project_name: str = "neurips_sac"
     wandb_entity: str = 'cl-probing'
     wandb_mode: str = 'online'
     wandb_dir: str = '.'
@@ -118,6 +118,7 @@ class Args:
     disable_entropy: int = 0
 
     use_relu: int = 0
+    use_dense_reward: bool = False
 
     # to be filled in runtime
     env_steps_per_actor_step: int = 0
@@ -320,8 +321,9 @@ if __name__ == "__main__":
         args.critic_network_width = args.network_width
         args.actor_network_width = args.network_width
 
-    run_name = f"{args.env_id}{'_' + args.eval_env_id if args.eval_env_id else ''}_{args.batch_size}_critbx:{args.critic_batch_size_multiplier}_actbx:{args.actor_batch_size_multiplier}_batchdiv2:{args.batchdiv2}_{args.total_env_steps}_nenvs:{args.num_envs}_criticwidth:{args.critic_network_width}_actorwidth:{args.actor_network_width}_criticdepth:{args.critic_depth}_actordepth:{args.actor_depth}_actorskip:{args.actor_skip_connections}_criticskip:{args.critic_skip_connections}_epspenv:{args.num_episodes_per_env}_trainmult:{args.training_steps_multiplier}_mrn:{args.mrn}_memorybank:{args.memory_bank}_sgdbatchesptrainstep:{args.num_sgd_batches_per_training_step}_useallbatches:{args.use_all_batches}_eplen:{args.episode_length}_maxbuffersize:{args.max_replay_size}_evalactor:{args.eval_actor}_explactor:{args.expl_actor}_vislen:{args.vis_length}_critlr:{args.critic_lr}_actlr:{args.actor_lr}_alplr:{args.alpha_lr}_entropy:{args.entropy_param}_disable_entropy:{args.disable_entropy}_relu:{args.use_relu}_{args.seed}"
+    run_name = f"JaxGCRLREPO_CLEAN_{args.env_id}{'_' + args.eval_env_id if args.eval_env_id else ''}_{args.batch_size}_critbx:{args.critic_batch_size_multiplier}_actbx:{args.actor_batch_size_multiplier}_batchdiv2:{args.batchdiv2}_{args.total_env_steps}_nenvs:{args.num_envs}_criticwidth:{args.critic_network_width}_actorwidth:{args.actor_network_width}_criticdepth:{args.critic_depth}_actordepth:{args.actor_depth}_actorskip:{args.actor_skip_connections}_criticskip:{args.critic_skip_connections}_epspenv:{args.num_episodes_per_env}_trainmult:{args.training_steps_multiplier}_mrn:{args.mrn}_memorybank:{args.memory_bank}_sgdbatchesptrainstep:{args.num_sgd_batches_per_training_step}_useallbatches:{args.use_all_batches}_eplen:{args.episode_length}_maxbuffersize:{args.max_replay_size}_evalactor:{args.eval_actor}_explactor:{args.expl_actor}_vislen:{args.vis_length}_critlr:{args.critic_lr}_actlr:{args.actor_lr}_alplr:{args.alpha_lr}_entropy:{args.entropy_param}_disable_entropy:{args.disable_entropy}_relu:{args.use_relu}_{args.seed}"
     print(f"run_name: {run_name}", flush=True)
+    print(f"use_dense_reward: {args.use_dense_reward}", flush=True)
 
     if args.track:
 
@@ -359,7 +361,7 @@ if __name__ == "__main__":
         key, 10)
 
 
-    def make_env(env_id=args.env_id):
+    def make_env(env_id=args.env_id, use_dense_reward=False):
         print(f"making env with env_id: {env_id}", flush=True)
         if env_id == "reacher":
             from envs.reacher import Reacher
@@ -383,6 +385,7 @@ if __name__ == "__main__":
                 backend="spring",
                 exclude_current_positions_from_observation=False,
                 terminate_when_unhealthy=True,
+                dense_reward=use_dense_reward
             )
 
             args.obs_dim = 29
@@ -396,7 +399,8 @@ if __name__ == "__main__":
                     backend="spring",
                     exclude_current_positions_from_observation=False,
                     terminate_when_unhealthy=True,
-                    maze_layout_name=env_id[4:]
+                    maze_layout_name=env_id[4:],
+                    dense_reward=use_dense_reward
                 )
 
                 args.obs_dim = 29
@@ -449,6 +453,7 @@ if __name__ == "__main__":
                 backend="spring",
                 exclude_current_positions_from_observation=False,
                 terminate_when_unhealthy=True,
+                dense_reward=use_dense_reward
             )
 
             args.obs_dim = 268
@@ -989,21 +994,6 @@ if __name__ == "__main__":
             key=eval_env_key,
         )
 
-    elif args.eval_actor == 1:
-        key, eval_actor_key = jax.random.split(key)
-        evaluator = CrlEvaluator(
-            lambda training_state, env, env_state, extra_fields: actor_step(
-                training_state,
-                env,
-                env_state,
-                eval_actor_key,
-                extra_fields
-            ),
-            eval_env,
-            num_eval_envs=args.num_eval_envs,
-            episode_length=args.episode_length,
-            key=eval_env_key,
-        )
 
 
     training_walltime = 0
