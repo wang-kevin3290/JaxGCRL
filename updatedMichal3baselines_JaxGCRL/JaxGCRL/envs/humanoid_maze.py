@@ -140,6 +140,7 @@ class HumanoidMaze(PipelineEnv):
         backend='generalized',
         maze_layout_name="u_maze",
         maze_size_scaling=2.0, # Was 4.0 for antmaze -- just trying to make it tractable
+        dense_reward: bool = False,
         **kwargs,
     ):
         xml_string, possible_starts, possible_goals = make_maze(maze_layout_name, maze_size_scaling)
@@ -179,9 +180,11 @@ class HumanoidMaze(PipelineEnv):
             exclude_current_positions_from_observation
         )
         self._target_ind = self.sys.link_names.index('target')
+        self.dense_reward = dense_reward
 
         self.state_dim = 268
         self.goal_indices = jnp.array([0, 1, 2])
+        self.goal_reach_thresh = 0.5
 
     def reset(self, rng: jax.Array) -> State:
         """Resets the environment to an initial state."""
@@ -250,10 +253,16 @@ class HumanoidMaze(PipelineEnv):
         obs = self._get_obs(pipeline_state, action)
         distance_to_target = jnp.linalg.norm(obs[:3] - obs[-3:])
 
+        success = jnp.array(distance_to_target < self.goal_reach_thresh, dtype=float)
+        success_easy = jnp.array(distance_to_target < 2.0, dtype=float)
+
+        if self.dense_reward:
+            reward = -distance_to_target + healthy_reward - ctrl_cost
+        else:
+            reward = success
+
         done = 1.0 - is_healthy if self._terminate_when_unhealthy else 0.0
-        reward = -distance_to_target + healthy_reward - ctrl_cost
-        success = jnp.array(distance_to_target < 0.5, dtype=float)
-        success_easy = jnp.array(distance_to_target < 2., dtype=float)
+
         state.metrics.update(
             forward_reward=forward_reward,
             reward_linvel=forward_reward,
