@@ -1,14 +1,12 @@
 import os
-from typing import Tuple
+import xml.etree.ElementTree as ET
 
-from brax import base
-from brax import math
+import jax
+import mujoco
+from brax import base, math
 from brax.envs.base import PipelineEnv, State
 from brax.io import mjcf
-import jax
 from jax import numpy as jnp
-import mujoco
-import xml.etree.ElementTree as ET
 
 # This is based on original Ant environment from Brax
 # https://github.com/google/brax/blob/main/brax/envs/ant.py
@@ -125,9 +123,17 @@ def make_maze(maze_layout_name, maze_size_scaling):
                     "geom",
                     name="block_%d_%d" % (i, j),
                     pos="%f %f %f"
-                    % (i * maze_size_scaling, j * maze_size_scaling, MAZE_HEIGHT / 2 * maze_size_scaling),
+                    % (
+                        i * maze_size_scaling,
+                        j * maze_size_scaling,
+                        MAZE_HEIGHT / 2 * maze_size_scaling,
+                    ),
                     size="%f %f %f"
-                    % (0.5 * maze_size_scaling, 0.5 * maze_size_scaling, MAZE_HEIGHT / 2 * maze_size_scaling),
+                    % (
+                        0.5 * maze_size_scaling,
+                        0.5 * maze_size_scaling,
+                        MAZE_HEIGHT / 2 * maze_size_scaling,
+                    ),
                     type="box",
                     material="",
                     contype="1",

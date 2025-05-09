@@ -268,6 +268,9 @@ def train(
     h_dim: int = 256,
     n_hidden: int = 4,
 ):
+
+    print("Training SAC", flush=True)
+
     """SAC training."""
     process_id = jax.process_index()
     local_devices_to_use = jax.local_device_count()

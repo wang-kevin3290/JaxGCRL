@@ -34,7 +34,7 @@ class Args:
     torch_deterministic: bool = True
     cuda: bool = True
     track: bool = True
-    wandb_project_name: str = "neurips_sac"
+    wandb_project_name: str = "ant_big_maze_jaxgcrl_env"
     wandb_entity: str = 'cl-probing'
     wandb_mode: str = 'online'
     wandb_dir: str = '.'
