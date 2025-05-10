@@ -337,8 +337,26 @@ def save_params(path: str, params: Any):
     """Saves parameters in flax format."""
     with epath.Path(path).open('wb') as fout:
         fout.write(pickle.dumps(params))
+        
+def gpu_warmup():
+    """
+    Dummy code to perform some GPU utilization at the beginning
+    so the cluster doesn't kill the job for inactivity.
+    """
+    print("Starting GPU warmup...", flush=True)
+    import jax
+    import jax.numpy as jnp
 
+    # A quick matrix multiplication loop that exerts GPU usage
+    x = jnp.ones((1024, 1024))
+    y = jnp.ones((1024, 1024))
+    for _ in range(20):
+        x = jnp.dot(x, y)
+    x.block_until_ready()
+    print("GPU warmup complete.", flush=True)
+    
 if __name__ == "__main__":
+    gpu_warmup()
 
     args = tyro.cli(Args)
     #we assume that a second/third/etc run will have the same args as the first run, just need to overwrite the seed.

@@ -221,6 +221,9 @@ class CRLAgent(flax.struct.PyTreeNode):
             action_dim = ex_actions.max() + 1
         else:
             action_dim = ex_actions.shape[-1]
+        
+        config['actor_hidden_dims'] = tuple([config['actor_width']] * config['actor_depth'])
+        config['value_hidden_dims'] = tuple([config['critic_width']] * config['critic_depth'])
 
         # Define encoders.
         encoders = dict()
@@ -244,6 +247,7 @@ class CRLAgent(flax.struct.PyTreeNode):
                 state_encoder=encoders.get('critic_state'),
                 goal_encoder=encoders.get('critic_goal'),
                 action_dim=action_dim,
+                block_size=config['critic_block_size'],
             )
         else:
             critic_def = GCBilinearValue(
@@ -254,6 +258,7 @@ class CRLAgent(flax.struct.PyTreeNode):
                 value_exp=True,
                 state_encoder=encoders.get('critic_state'),
                 goal_encoder=encoders.get('critic_goal'),
+                block_size=config['critic_block_size'],
             )
 
         if config['actor_loss'] == 'awr':
@@ -266,6 +271,7 @@ class CRLAgent(flax.struct.PyTreeNode):
                 value_exp=True,
                 state_encoder=encoders.get('value_state'),
                 goal_encoder=encoders.get('value_goal'),
+                block_size=config['critic_block_size'],
             )
 
         if config['discrete']:
@@ -273,6 +279,7 @@ class CRLAgent(flax.struct.PyTreeNode):
                 hidden_dims=config['actor_hidden_dims'],
                 action_dim=action_dim,
                 gc_encoder=encoders.get('actor'),
+                block_size=config['actor_block_size'],
             )
         else:
             actor_def = GCActor(
@@ -281,6 +288,7 @@ class CRLAgent(flax.struct.PyTreeNode):
                 state_dependent_std=False,
                 const_std=config['const_std'],
                 gc_encoder=encoders.get('actor'),
+                block_size=config['actor_block_size'],
             )
 
         network_info = dict(
@@ -309,8 +317,14 @@ def get_config():
             agent_name='crl',  # Agent name.
             lr=3e-4,  # Learning rate.
             batch_size=1024,  # Batch size.
-            actor_hidden_dims=(512, 512, 512),  # Actor network hidden dimensions.
-            value_hidden_dims=(512, 512, 512),  # Value network hidden dimensions.
+            critic_width=512,  # Width of the actor and value networks.
+            actor_width=512,  # Width of the actor and value networks.
+            critic_depth=3,  # Depth of the actor and value networks.
+            actor_depth=3,  # Depth of the actor and value networks.
+            actor_hidden_dims=None,  # CHANGED THESE TO BE COMPUTED VIA DEPTH AND WIDTH
+            value_hidden_dims=None,  # CHANGED THESE TO BE COMPUTED VIA DEPTH AND WIDTH
+            critic_block_size=2,
+            actor_block_size=2,
             latent_dim=512,  # Latent dimension for phi and psi.
             layer_norm=True,  # Whether to use layer normalization.
             discount=0.99,  # Discount factor.

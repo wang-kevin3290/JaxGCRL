@@ -210,12 +210,7 @@ class SA_encoder(nn.Module):
                      bias_init=bias_init)(x)
         x = normalize(x)
         x = activation(x)
-
-        #----------------------------------------------------------------
-        # Use nn.scan to repeatedly apply the residual block.
-        # Since each residual block applies 4 dense layers,
-        # we need to run it network_depth//4 times.
-        #----------------------------------------------------------------
+        
         num_blocks = self.network_depth // 4
 
         # Wrap ResidualBlock with nn.scan.

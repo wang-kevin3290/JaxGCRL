@@ -13,6 +13,12 @@ from utils import MetricsRecorder, get_env_config, create_env, create_eval_env, 
 
 
 def main(args):
+    if args.alg == 'sac':
+        print("Running SAC")
+    elif args.alg == 'sac_her':
+        print("Running SAC + HER")
+    else:
+        raise ValueError(f"args.alg = {args.alg}, but called training_sac.py")
 
     env = create_env(args)
     eval_env = create_eval_env(args)
@@ -45,7 +51,7 @@ def main(args):
         max_replay_size=args.max_replay_size,
         min_replay_size=args.min_replay_size,
         seed=args.seed,
-        eval_env=eval_env
+        eval_env=eval_env,
     )
 
     metrics_recorder = MetricsRecorder(args.num_timesteps)

@@ -13,6 +13,12 @@ from utils import MetricsRecorder, get_env_config, create_env, create_eval_env, 
 
 
 def main(args):
+    if args.alg == 'td3':
+        print("Running TD3")
+    elif args.alg == 'td3_her':
+        print("Running TD3 + HER")
+    else:
+        raise ValueError(f"args.alg = {args.alg}, but called training_td3.py")
 
     env = create_env(args)
     eval_env = create_eval_env(args)

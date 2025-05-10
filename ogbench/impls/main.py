@@ -26,7 +26,7 @@ flags.DEFINE_string('save_dir', 'exp/', 'Save directory.')
 flags.DEFINE_string('restore_path', None, 'Restore path.')
 flags.DEFINE_integer('restore_epoch', None, 'Restore epoch.')
 
-flags.DEFINE_integer('train_steps', 1000000, 'Number of training steps.')
+flags.DEFINE_integer('train_steps', 10000, 'Number of training steps.')
 flags.DEFINE_integer('log_interval', 5000, 'Logging interval.')
 flags.DEFINE_integer('eval_interval', 100000, 'Evaluation interval.')
 flags.DEFINE_integer('save_interval', 1000000, 'Saving interval.')
@@ -43,9 +43,17 @@ config_flags.DEFINE_config_file('agent', 'agents/gciql.py', lock_config=False)
 
 
 def main(_):
+    #overwrite the seed
+    FLAGS.seed = random.randint(1, 1000)
+    print(f"seed: {FLAGS.seed}", flush=True)
+    
+    config = FLAGS.agent
     # Set up logger.
-    exp_name = get_exp_name(FLAGS.seed)
-    setup_wandb(project='OGBench', group=FLAGS.run_group, name=exp_name)
+    # exp_name = get_exp_name(FLAGS.seed)
+    exp_name = f"{FLAGS.env_name}_cw{config.get('critic_width', 'NA')}_aw{config.get('actor_width', 'NA')}" \
+               f"_cd{config.get('critic_depth', 'NA')}_ad{config.get('actor_depth', 'NA')}_seed{FLAGS.seed}"
+    print(f"exp_name: {exp_name}", flush=True)
+    setup_wandb(project='OGBench', group=FLAGS.run_group, name=exp_name, mode='offline')
 
     FLAGS.save_dir = os.path.join(FLAGS.save_dir, wandb.run.project, FLAGS.run_group, exp_name)
     os.makedirs(FLAGS.save_dir, exist_ok=True)
@@ -54,8 +62,8 @@ def main(_):
         json.dump(flag_dict, f)
 
     # Set up environment and dataset.
-    config = FLAGS.agent
     env, train_dataset, val_dataset = make_env_and_datasets(FLAGS.env_name, frame_stack=config['frame_stack'])
+    
 
     dataset_class = {
         'GCDataset': GCDataset,
@@ -91,7 +99,11 @@ def main(_):
     eval_logger = CsvLogger(os.path.join(FLAGS.save_dir, 'eval.csv'))
     first_time = time.time()
     last_time = time.time()
-    for i in tqdm.tqdm(range(1, FLAGS.train_steps + 1), smoothing=0.1, dynamic_ncols=True):
+    print("Starting training", flush=True)
+    
+    pbar = tqdm.tqdm(range(1, FLAGS.train_steps + 1), smoothing=0.1, dynamic_ncols=True)
+    for i in pbar:
+        pbar.set_description(f"Epoch {i}/{FLAGS.train_steps} ({(i/FLAGS.train_steps)*100:.1f}%)")
         # Update agent.
         batch = train_dataset.sample(config['batch_size'])
         agent, update_info = agent.update(batch)

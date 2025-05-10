@@ -48,15 +48,33 @@ class MLP(nn.Module):
     activate_final: bool = False
     kernel_init: Any = default_init()
     layer_norm: bool = False
+    block_size: int = 2 #residual block size of skip connections
 
     @nn.compact
-    def __call__(self, x):
-        for i, size in enumerate(self.hidden_dims):
+    def __call__(self, x): 
+        #depth 3 now is depth 3 + 1 initial layer, critic = actor both now and before (because notice that critic actually passes a latent_dim at end)
+        #so in the args, if depth is 4, then both actor and critic should set (512, 512, 512, 512) in args
+        print(f"BLOCK SIZE USED: {self.block_size}", flush=True)
+        
+        network = "actor" if self.activate_final else "critic"
+        
+        x = nn.Dense(self.hidden_dims[0], kernel_init=self.kernel_init)(x)
+        x = self.activations(x)
+        if self.layer_norm:
+            x = nn.LayerNorm()(x)
+        
+        skip = x
+        for i, size in enumerate(self.hidden_dims[:-1]):
             x = nn.Dense(size, kernel_init=self.kernel_init)(x)
-            if i + 1 < len(self.hidden_dims) or self.activate_final:
-                x = self.activations(x)
-                if self.layer_norm:
-                    x = nn.LayerNorm()(x)
+            x = self.activations(x)
+            if self.layer_norm:
+                x = nn.LayerNorm()(x)
+            if (i+1) % self.block_size == 0:
+                x = x + skip
+                skip = x
+                
+        if network == "critic":
+            x = nn.Dense(self.hidden_dims[-1], kernel_init=self.kernel_init)(x)
         return x
 
 
@@ -164,9 +182,9 @@ class GCActor(nn.Module):
     const_std: bool = True
     final_fc_init_scale: float = 1e-2
     gc_encoder: nn.Module = None
-
+    block_size: int = 2
     def setup(self):
-        self.actor_net = MLP(self.hidden_dims, activate_final=True)
+        self.actor_net = MLP(self.hidden_dims, activate_final=True, block_size=self.block_size)
         self.mean_net = nn.Dense(self.action_dim, kernel_init=default_init(self.final_fc_init_scale))
         if self.state_dependent_std:
             self.log_std_net = nn.Dense(self.action_dim, kernel_init=default_init(self.final_fc_init_scale))
@@ -347,14 +365,14 @@ class GCBilinearValue(nn.Module):
     value_exp: bool = False
     state_encoder: nn.Module = None
     goal_encoder: nn.Module = None
-
+    block_size: int = 2
     def setup(self) -> None:
         mlp_module = MLP
         if self.ensemble:
             mlp_module = ensemblize(mlp_module, 2)
 
-        self.phi = mlp_module((*self.hidden_dims, self.latent_dim), activate_final=False, layer_norm=self.layer_norm)
-        self.psi = mlp_module((*self.hidden_dims, self.latent_dim), activate_final=False, layer_norm=self.layer_norm)
+        self.phi = mlp_module((*self.hidden_dims, self.latent_dim), activate_final=False, layer_norm=self.layer_norm, block_size=self.block_size)
+        self.psi = mlp_module((*self.hidden_dims, self.latent_dim), activate_final=False, layer_norm=self.layer_norm, block_size=self.block_size)
 
     def __call__(self, observations, goals, actions=None, info=False):
         """Return the value/critic function.

@@ -20,11 +20,11 @@ actor_network_width = 256
 actor_network_depth = 64
 actor_skip_connections = 4
 actor_use_relu = 0
-save_path = './runs/humanoid_u_maze_846_20250110-062736'
-pkl_file = 'step_60567552.pkl' #'final.pkl'
+save_path = './runs/humanoid_u_maze_546_20250119-051026'
+pkl_file = 'step_196368384.pkl' #'final.pkl'
 
 vis_length = 1000
-num_rollouts = 10
+num_rollouts = 15
 send_wandb = False
 wandb_run_id = "vnwk2iz8"
 

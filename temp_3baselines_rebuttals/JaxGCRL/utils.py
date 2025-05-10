@@ -68,6 +68,7 @@ def create_parser():
     parser.add_argument('--repr_dim', type=int, default=64, help="Dimension of the representation")
     parser.add_argument('--use_dense_reward', default=False, action="store_true", help="Whether to use sparse reward in env")
     parser.add_argument('--use_her', default=False, action="store_true", help="Whether to use HER for SAC")
+    parser.add_argument('--alg', type=str, default='crl', help="Algorithm to use")
     return parser
 
 
