@@ -540,7 +540,7 @@ def train(
         buffer_state: ReplayBufferState,
         key: PRNGKey,
     ) -> Tuple[TrainingState, ReplayBufferState, Metrics]:
-        experience_key, training_key, sampling_key = jax.random.split(key, 3)
+        experience_key, training_key, sampling_key, sgd_batches_key = jax.random.split(key, 4)
         buffer_state, transitions = replay_buffer.sample(buffer_state)
 
         batch_keys = jax.random.split(sampling_key, transitions.observation.shape[0])
@@ -555,10 +555,32 @@ def train(
         )
         permutation = jax.random.permutation(experience_key, len(transitions.observation))
         transitions = jax.tree_util.tree_map(lambda x: x[permutation], transitions)
+
+        # I added this code, so as to ensure len(transitions.observation) is divisible by batch_size
+        num_full_batches = len(transitions.observation) // batch_size
+        transitions = jax.tree_util.tree_map(lambda x: x[:num_full_batches * batch_size], transitions)
+        print(
+            f"transitions.observation.shape (after ensuring divisibility by batch_size): {transitions.observation.shape}",
+            flush=True)
+
         transitions = jax.tree_util.tree_map(
             lambda x: jnp.reshape(x, (-1, batch_size) + x.shape[1:]),
             transitions,
         )
+
+        print(f"transitions.observation.shape (after processing): {transitions.observation.shape}", flush=True)
+
+
+        num_total_batches = transitions.observation.shape[0]
+        selected_indices = jax.random.permutation(
+            sgd_batches_key,
+            num_total_batches
+        )[:800]
+        transitions = jax.tree_util.tree_map(
+            lambda x: x[selected_indices],
+            transitions
+        )
+        print(f"transitions.observation.shape: {transitions.observation.shape}", flush=True)
 
         (training_state, _), metrics = jax.lax.scan(update_step, (training_state, training_key), transitions)
         return training_state, buffer_state, metrics
