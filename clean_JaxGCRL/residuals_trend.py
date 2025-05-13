@@ -185,6 +185,86 @@ def residual_block(x, width, normalize, activation):
     
     return x, residual_magnitude
 
+class SA_encoder(nn.Module):
+    norm_type = "layer_norm"
+    network_width: int = 1024
+    network_depth: int = 4
+    skip_connections: int = 0
+    use_relu: int = 0
+    @nn.compact
+    def __call__(self, s: jnp.ndarray, a: jnp.ndarray, track_residuals=False):
+
+        lecun_unfirom = variance_scaling(1/3, "fan_in", "uniform")
+        bias_init = nn.initializers.zeros
+        
+        if self.norm_type == "layer_norm":
+            normalize = lambda x: nn.LayerNorm()(x)
+        else:
+            normalize = lambda x: x
+        
+        if self.use_relu:
+            activation = nn.relu
+        else:
+            activation = nn.swish
+        
+        residual_magnitudes = []
+        x = jnp.concatenate([s, a], axis=-1)
+        #Initial layer
+        x = nn.Dense(self.network_width, kernel_init=lecun_unfirom, bias_init=bias_init)(x)
+        x = normalize(x)
+        x = activation(x)
+        #Residual blocks
+        for i in range(self.network_depth // 4):
+            x, res_mag = residual_block(x, self.network_width, normalize, activation)
+            if track_residuals:
+                residual_magnitudes.append(res_mag)
+        #Final layer
+        x = nn.Dense(64, kernel_init=lecun_unfirom, bias_init=bias_init)(x)
+        if track_residuals:
+            return x, residual_magnitudes
+        else:
+            return x
+    
+class G_encoder(nn.Module):
+    norm_type = "layer_norm"
+    network_width: int = 1024
+    network_depth: int = 4
+    skip_connections: int = 0
+    use_relu: int = 0
+    @nn.compact
+    def __call__(self, g: jnp.ndarray, track_residuals=False):
+
+        lecun_unfirom = variance_scaling(1/3, "fan_in", "uniform")
+        bias_init = nn.initializers.zeros
+
+        if self.norm_type == "layer_norm":
+            normalize = lambda x: nn.LayerNorm()(x)
+        else:
+            normalize = lambda x: x
+        
+        if self.use_relu:
+            activation = nn.relu
+        else:
+            activation = nn.swish
+
+        residual_magnitudes = []
+        x = g
+        #Initial layer
+        x = nn.Dense(self.network_width, kernel_init=lecun_unfirom, bias_init=bias_init)(x)
+        x = normalize(x)
+        x = activation(x)
+        #Residual blocks
+        for i in range(self.network_depth // 4):
+            x, res_mag = residual_block(x, self.network_width, normalize, activation)
+            if track_residuals:
+                residual_magnitudes.append(res_mag)
+        #Final layer
+        x = nn.Dense(64, kernel_init=lecun_unfirom, bias_init=bias_init)(x)
+        if track_residuals:
+            return x, residual_magnitudes
+        else:
+            return x
+
   
 class Actor(nn.Module):
     action_size: int
@@ -375,11 +455,112 @@ def analyze_trajectory_residuals(actor, params, env, env_state, num_envs=10, ste
     
     return residual_magnitudes_np
 
+# Function to analyze SA_encoder residuals
+def analyze_sa_encoder_residuals(sa_encoder, params, obs, actions, batch_size=256):
+    """Analyze the magnitudes of residuals in the SA encoder network"""
+    # Create a batch of observations and actions, excluding last 3 elements from obs
+    if len(obs.shape) == 2:
+        batch_obs = obs[:batch_size, :-3]  # Modified to exclude last 3 elements
+        batch_actions = actions[:batch_size] if len(actions.shape) == 2 else jnp.tile(actions, (batch_size, 1))
+    else:
+        batch_obs = jnp.tile(obs[:-3], (batch_size, 1))  # Modified to exclude last 3 elements
+        batch_actions = jnp.tile(actions, (batch_size, 1))
+    
+    # Forward pass with residual tracking enabled
+    _, residual_magnitudes = sa_encoder.apply(params, batch_obs, batch_actions, track_residuals=True)
+    
+    # Convert to numpy for easier handling
+    residual_magnitudes_np = [jnp.mean(mag).item() for mag in residual_magnitudes]
+    
+    return residual_magnitudes_np
+
+# Function to analyze G_encoder residuals
+def analyze_g_encoder_residuals(g_encoder, params, obs, batch_size=256):
+    """Analyze the magnitudes of residuals in the G encoder network"""
+    # Create a batch of goals (last 3 elements of obs)
+    if len(obs.shape) == 2:
+        batch_goals = obs[:batch_size, -3:]  # Take last 3 elements as goals
+    else:
+        batch_goals = jnp.tile(obs[-3:], (batch_size, 1))  # Take last 3 elements as goals
+    
+    # Forward pass with residual tracking enabled
+    _, residual_magnitudes = g_encoder.apply(params, batch_goals, track_residuals=True)
+    
+    # Convert to numpy for easier handling
+    residual_magnitudes_np = [jnp.mean(mag).item() for mag in residual_magnitudes]
+    
+    return residual_magnitudes_np
+
+# Modified function to analyze all networks on trajectory data
+def analyze_all_networks_residuals(actor, actor_params, sa_encoder, sa_params, g_encoder, g_params, 
+                                 env, env_state, args, num_envs=10, steps_per_env=20, batch_size=256):
+    """Analyze residuals on all networks using trajectory data"""
+    # Split the trajectory collection across multiple environments
+    env_states = jax.tree_util.tree_map(lambda x: x[:num_envs], env_state)
+    
+    # Collect trajectory data
+    trajectory_obs = collect_trajectory_data(actor, actor_params, env, env_states, num_steps=steps_per_env)
+    
+    print(f"Collected {trajectory_obs.shape[0]} observations from trajectories", flush=True)
+    
+    # Sample random indices for batch creation
+    indices = jax.random.randint(
+        jax.random.PRNGKey(0), 
+        shape=(batch_size,), 
+        minval=0, 
+        maxval=trajectory_obs.shape[0]
+    )
+    sampled_obs = trajectory_obs[indices]
+    
+    # Generate actions for SA encoder
+    means, _ = actor.apply(actor_params, sampled_obs)
+    actions = nn.tanh(means)
+    
+    # Get residuals from all networks
+    actor_residuals = analyze_actor_residuals(actor, actor_params, sampled_obs)
+    sa_residuals = analyze_sa_encoder_residuals(sa_encoder, sa_params, sampled_obs, actions)
+    g_residuals = analyze_g_encoder_residuals(g_encoder, g_params, sampled_obs)  # Now passing full obs
+    
+    # Create comparison plot
+    plt.figure(figsize=(15, 8))
+    
+    plt.subplot(1, 2, 1)  # First subplot for individual plots
+    plt.plot(range(len(actor_residuals)), actor_residuals, 'o-', label='Actor')
+    plt.plot(range(len(sa_residuals)), sa_residuals, 's-', label='SA Encoder')
+    plt.plot(range(len(g_residuals)), g_residuals, '^-', label='G Encoder')
+    plt.title('Residual Magnitudes Across Networks')
+    plt.xlabel('Residual Block Index')
+    plt.ylabel('Average Residual Magnitude (L2 Norm)')
+    plt.legend()
+    plt.grid(True)
+    
+    plt.subplot(1, 2, 2)  # Second subplot for boxplot comparison
+    data = [actor_residuals, sa_residuals, g_residuals]
+    plt.boxplot(data, labels=['Actor', 'SA Encoder', 'G Encoder'])
+    plt.title('Distribution of Residual Magnitudes')
+    plt.ylabel('Residual Magnitude (L2 Norm)')
+    plt.grid(True)
+    
+    plt.tight_layout()
+    plt.savefig(f'repeat_reps_figs/{args.env_id}_{args.seed}_all_networks_residuals.png')
+    print(f"Saved: {args.env_id}_{args.seed}_all_networks_residuals.png", flush=True)
+    
+    # Save the raw data
+    residual_data = {
+        'actor': actor_residuals,
+        'sa_encoder': sa_residuals,
+        'g_encoder': g_residuals
+    }
+    with open(f'repeat_reps_figs/{args.env_id}_{args.seed}_all_networks_residual_data.pkl', 'wb') as f:
+        pickle.dump(residual_data, f)
+    
+    return actor_residuals, sa_residuals, g_residuals
+
 if __name__ == "__main__":   
 
-    prev_run_folder = "/scratch/gpfs/kw6487/JaxGCRL/clean_JaxGCRL/runs/humanoid_271_20250117-071637"
-    prev_run_folder = "/scratch/gpfs/kw6487/JaxGCRL/clean_JaxGCRL/runs/humanoid_186_20250105-180537"
-    # prev_run_folder = "/scratch/gpfs/kw6487/JaxGCRL/clean_JaxGCRL/runs/humanoid_758_20250105-190051"
+    prev_run_folder = "/scratch/gpfs/kw6487/JaxGCRL/clean_JaxGCRL/runs/humanoid_271_20250117-071637" #DEPTH 8
+    prev_run_folder = "/scratch/gpfs/kw6487/JaxGCRL/clean_JaxGCRL/runs/humanoid_186_20250105-180537" #DEPTH 32
+    # prev_run_folder = "/scratch/gpfs/kw6487/JaxGCRL/clean_JaxGCRL/runs/humanoid_758_20250105-190051" #DEPTH 64
     print(f"prev_run_folder: {prev_run_folder}", flush=True)
     
     prev_args_path = Path(prev_run_folder) / "args.pkl"
@@ -622,7 +803,30 @@ if __name__ == "__main__":
         params=actor.init(actor_key, np.ones([1, obs_size])),
         tx=optax.adam(learning_rate=args.actor_lr)
     )
+
+    # Critic
+    sa_encoder = SA_encoder(network_width=args.critic_network_width, network_depth=args.critic_depth, skip_connections=args.critic_skip_connections, use_relu=args.use_relu)
+    sa_encoder_params = sa_encoder.init(sa_key, np.ones([1, args.obs_dim]), np.ones([1, action_size]))
+    g_encoder = G_encoder(network_width=args.critic_network_width, network_depth=args.critic_depth, skip_connections=args.critic_skip_connections, use_relu=args.use_relu)
+    g_encoder_params = g_encoder.init(g_key, np.ones([1, args.goal_end_idx - args.goal_start_idx]))
         
+    critic_state = TrainState.create(
+        apply_fn=None,
+        params={
+            "sa_encoder": sa_encoder_params, 
+            "g_encoder": g_encoder_params
+            },
+        tx=optax.adam(learning_rate=args.critic_lr),
+    )
+
+    # Entropy coefficient
+    target_entropy = -args.entropy_param * action_size # action_size = 8 for ant, 17 for humanoid, etc # USEED TO BE -0.5 * action_size
+    log_alpha = jnp.asarray(0.0, dtype=jnp.float32)
+    alpha_state = TrainState.create(
+        apply_fn=None,
+        params={"log_alpha": log_alpha},
+        tx=optax.adam(learning_rate=args.alpha_lr),
+    )
         
     
     def jit_wrap(memory_bank):
@@ -641,8 +845,8 @@ if __name__ == "__main__":
         env_steps=jnp.zeros(()),
         gradient_steps=jnp.zeros(()),
         actor_state=actor_state,
-        critic_state=None,
-        alpha_state=None,
+        critic_state=critic_state,
+        alpha_state=alpha_state,
         memory_bank_state=memory_bank_state,
     )
     
@@ -665,44 +869,39 @@ if __name__ == "__main__":
         print(f"Failed to load params from {prev_params_path}", flush=True)
         
     # replace the initial parameters with the loaded ones
-    # alpha_state = alpha_state.replace(params=alpha_params)
+    alpha_state = alpha_state.replace(params=alpha_params)
     actor_state = actor_state.replace(params=actor_params)
-    # critic_state = critic_state.replace(params={"sa_encoder": sa_encoder_params, "g_encoder": g_encoder_params})
+    critic_state = critic_state.replace(params={"sa_encoder": critic_params["sa_encoder"], "g_encoder": critic_params["g_encoder"]})
     
     # wrap it all back into the training_state for easy handling
     training_state = training_state.replace(
-        alpha_state=None,
+        alpha_state=alpha_state,
         actor_state=actor_state,
-        critic_state=None,
+        critic_state=critic_state,
     )
     
     print(f"Loaded alpha, actor, and critic params from {prev_params_path} and replaced initial parameters in training_state", flush=True)
 
-    # Track and analyze residuals on both initial and trajectory data
-    print("Analyzing Actor residuals on initial states...", flush=True)
-    initial_residual_mags = analyze_actor_residuals(actor, training_state.actor_state.params, env_state.obs)
-    print(f"Average residual magnitudes across layers (initial states): {initial_residual_mags}", flush=True)
+    # Create directory for figures if it doesn't exist
+    # os.makedirs('repeat_reps_figs', exist_ok=True)
 
-    print("Analyzing Actor residuals on trajectory data...", flush=True)
-    trajectory_residual_mags = analyze_trajectory_residuals(
+    print("Analyzing residuals for all networks...", flush=True)
+    actor_residuals, sa_residuals, g_residuals = analyze_all_networks_residuals(
         actor, 
-        training_state.actor_state.params, 
-        eval_env, 
-        eval_env_state
+        training_state.actor_state.params,
+        sa_encoder,
+        training_state.critic_state.params['sa_encoder'],
+        g_encoder,
+        training_state.critic_state.params['g_encoder'],
+        eval_env,
+        eval_env_state,
+        args
     )
-    print(f"Average residual magnitudes across layers (trajectory states): {trajectory_residual_mags}", flush=True)
 
-    # Create a comparison plot
-    plt.figure(figsize=(12, 6))
-    plt.plot(range(len(initial_residual_mags)), initial_residual_mags, 'o-', label='Initial States')
-    plt.plot(range(len(trajectory_residual_mags)), trajectory_residual_mags, 's-', label='Trajectory States')
-    plt.title('Comparison of Residual Magnitudes: Initial vs Trajectory States')
-    plt.xlabel('Residual Block Index')
-    plt.ylabel('Average Residual Magnitude (L2 Norm)')
-    plt.legend()
-    plt.grid(True)
-    plt.savefig('residual_comparison.png')
-    print(f"Saved: residual_comparison.png", flush=True)
+    print("Average residual magnitudes:", flush=True)
+    print(f"Actor: {np.mean(actor_residuals):.4f}", flush=True)
+    print(f"SA Encoder: {np.mean(sa_residuals):.4f}", flush=True)
+    print(f"G Encoder: {np.mean(g_residuals):.4f}", flush=True)
 
     def deterministic_actor_step(training_state, env, env_state, extra_fields):
         means, _ = actor.apply(training_state.actor_state.params, env_state.obs)

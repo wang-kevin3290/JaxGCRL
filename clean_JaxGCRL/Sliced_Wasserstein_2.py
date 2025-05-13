@@ -1,154 +1,156 @@
-def create_dataset(run_dir, num_traj):
+import pickle
+import os
+import jax
+import flax
+import tyro
+import time
+import optax
+import wandb
+import pickle
+import random
+import wandb_osh
+import numpy as np
+import flax.linen as nn
+import jax.numpy as jnp
+import matplotlib.pyplot as plt
+
+from brax import envs
+from etils import epath
+from dataclasses import dataclass
+from collections import namedtuple
+from typing import NamedTuple, Any
+from wandb_osh.hooks import TriggerWandbSyncHook
+from flax.training.train_state import TrainState
+from flax.linen.initializers import variance_scaling
+from brax.io import html
+from brax.io import model
+
+from evaluator import CrlEvaluator
+from buffer import TrajectoryUniformSamplingQueue
+from memory_bank import MemoryBank, MemoryBankState
+@dataclass
+class Args:
+    exp_name: str = "train" # os.path.basename(__file__)[: -len(".py")]
+    seed: int = random.randint(1, 1000) # 16
+    torch_deterministic: bool = True
+    cuda: bool = True
+    track: bool = True
+    wandb_project_name: str = "clean_JaxGCRL_test"
+    wandb_entity: str = 'wang-kevin3290-princeton-university'
+    wandb_mode: str = 'offline'
+    wandb_dir: str = '.'
+    wandb_group: str = '.'
+    capture_vis: bool = True
+    vis_length: int = 1000
+    checkpoint: bool = True
+
+    #environment specific arguments
+    env_id: str = "humanoid" # "ant_push" "ant_hardest_maze" "ant_big_maze" "humanoid" "ant"
+    episode_length: int = 1000
+    # to be filled in runtime
+    obs_dim: int = 0
+    goal_start_idx: int = 0
+    goal_end_idx: int = 0
+
+    # Algorithm specific arguments
+    total_env_steps: int = 100000000 # 50000000
+    num_epochs: int = 100 # 50
+    num_envs: int = 512
+    eval_env_id: str = ""
+    num_eval_envs: int = 128
+    actor_lr: float = 3e-4
+    critic_lr: float = 3e-4
+    alpha_lr: float = 3e-4
+    batch_size: int = 256
+    gamma: float = 0.99
+    logsumexp_penalty_coeff: float = 0.1
+    
+    #adding in a batch_size_multiplier argument for critic vs. actor batch size
+    critic_batch_size_multiplier: float = 1.0 #this has to be less than or equal to 1
+    actor_batch_size_multiplier: float = 1.0 #this has to be less than 1
+
+    max_replay_size: int = 10000
+    min_replay_size: int = 1000
+    
+    unroll_length: int  = 62
+    
+    # ADDING IN A NETWORK WIDTH ARGUMENT
+    same_network_width: int = 0
+    network_width: int = 256
+    critic_network_width: int = 256
+    actor_network_width: int = 256
+    actor_depth: int = 4
+    critic_depth: int = 4
+    actor_skip_connections: int = 0 # 0 for no skip connections, >= 0 means the frequency of skip connections (every X layers)
+    critic_skip_connections: int = 0 # 0 for no skip connections, >= 0 means the frequency of skip connections (every X layers)
+    
+    num_episodes_per_env: int = 1 #the number of episodes to sample from each env when sampling data 
+    #(to ensure number of batches is consistent as increase batch_size; for now, just a bandaid fix)
+    # should be something like batch_size / 256
+    training_steps_multiplier: int = 1 #should have the same effect as num_episodes_per_env, hmmm
+    use_all_batches: int = 0 # if 1, use all batches; if 0, use a random subset of batches
+    num_sgd_batches_per_training_step: int = 800 # this parameter so as to hold the number of batches constant (no matter batch_size, etc)
+    
+    mrn: int = 0
+    memory_bank: int = 0
+    memory_bank_size: int = batch_size # this can be modified too
+    
+    batchdiv2: int = 0 
+    # if 1, freeze gradients for second half of batch
+    # if 2, split in half along sa and freeze second half of g (Eysenbach ablation, remember it's forward loss)
+    #
+    # use batch_size * 2 and split in half and freeze gradients and all that (Eysenbach ablation), does not 
+    # TODO: if 2, modifies actor such that it uses the half batch size (isolate for critic ablation)
+    # can add 3, 4, etc (if diff between 1 and 2, maybe for batch_size ablation we need to have separate for actor and critic)
+    # add more for instead of discarding second half, just freeze gradients for second half so symmetric with first
+    
+    eval_actor: int = 0
+    # if 0, use deterministic actor for evaluation
+    # if 1, use stochastic actor for evaluation
+    # if 2, sample two actions and take the one with the higher Q value
+    # if K >= 2, sample K actions and take the one with the highest Q value
+    expl_actor: int = 1
+    # if 0, use deterministic actor for exploration/collecting data
+    # if 1, use stochastic actor for exploration/collecting data
+    # if 2, sample two actions and take the one with the higher Q value
+    # if K >= 2, sample K actions and take the one with the highest Q value
+    
+    entropy_param: float = 0.5
+    disable_entropy: int = 0
+    
+    use_relu: int = 0
+    
+    resnet: str = "noishmistake4_nodense"
+    
+    num_render: int = 10
+    
+    
+    
+    # to be filled in runtime
+    env_steps_per_actor_step : int = 0
+    """number of env steps per actor step (computed in runtime)"""
+    num_prefill_env_steps : int = 0
+    """number of env steps to fill the buffer before starting training (computed in runtime)"""
+    num_prefill_actor_steps : int = 0
+    """number of actor steps to fill the buffer before starting training (computed in runtime)"""
+    num_training_steps_per_epoch : int = 0
+    """the number of training steps per epoch(computed in runtime)"""
+
+def create_dataset(run_dir, num_trajs):
 
     # run_dir = "/scratch/gpfs/kw6487/JaxGCRL/clean_JaxGCRL/runs/humanoid_671_20250105-181659"
     # run_dir = "/scratch/gpfs/kw6487/JaxGCRL/clean_JaxGCRL/runs/humanoid_271_20250117-071637" #Humanoid, depth 8 (100k)
     # run_dir = "/scratch/gpfs/kw6487/JaxGCRL/clean_JaxGCRL/runs/humanoid_186_20250105-180537" #Humanoid, depth 32 (100k)
     # run_dir = "/scratch/gpfs/kw6487/JaxGCRL/clean_JaxGCRL/runs/humanoid_758_20250105-190051" #Humanoid, depth 64 (100k)
-    run_dir = run_dir
     args_path = f"{run_dir}/args.pkl"
     params_path = f"{run_dir}/final.pkl"
 
     eval_env_id = None #if you want to use the env_id in args.eval_env_id, leave this as None
 
-    import pickle
-    import os
-    import jax
-    import flax
-    import tyro
-    import time
-    import optax
-    import wandb
-    import pickle
-    import random
-    import wandb_osh
-    import numpy as np
-    import flax.linen as nn
-    import jax.numpy as jnp
-    import matplotlib.pyplot as plt
-
-    from brax import envs
-    from etils import epath
-    from dataclasses import dataclass
-    from collections import namedtuple
-    from typing import NamedTuple, Any
-    from wandb_osh.hooks import TriggerWandbSyncHook
-    from flax.training.train_state import TrainState
-    from flax.linen.initializers import variance_scaling
-    from brax.io import html
-    from brax.io import model
-
-    from evaluator import CrlEvaluator
-    from buffer import TrajectoryUniformSamplingQueue
-    from memory_bank import MemoryBank, MemoryBankState
+    
 
     #COPY OVER DEFINITIONS
-    @dataclass
-    class Args:
-        exp_name: str = "train" # os.path.basename(__file__)[: -len(".py")]
-        seed: int = random.randint(1, 1000) # 16
-        torch_deterministic: bool = True
-        cuda: bool = True
-        track: bool = True
-        wandb_project_name: str = "clean_JaxGCRL_test"
-        wandb_entity: str = 'wang-kevin3290-princeton-university'
-        wandb_mode: str = 'offline'
-        wandb_dir: str = '.'
-        wandb_group: str = '.'
-        capture_vis: bool = True
-        vis_length: int = 1000
-        checkpoint: bool = True
-
-        #environment specific arguments
-        env_id: str = "humanoid" # "ant_push" "ant_hardest_maze" "ant_big_maze" "humanoid" "ant"
-        episode_length: int = 1000
-        # to be filled in runtime
-        obs_dim: int = 0
-        goal_start_idx: int = 0
-        goal_end_idx: int = 0
-
-        # Algorithm specific arguments
-        total_env_steps: int = 100000000 # 50000000
-        num_epochs: int = 100 # 50
-        num_envs: int = 512
-        eval_env_id: str = ""
-        num_eval_envs: int = 128
-        actor_lr: float = 3e-4
-        critic_lr: float = 3e-4
-        alpha_lr: float = 3e-4
-        batch_size: int = 256
-        gamma: float = 0.99
-        logsumexp_penalty_coeff: float = 0.1
-        
-        #adding in a batch_size_multiplier argument for critic vs. actor batch size
-        critic_batch_size_multiplier: float = 1.0 #this has to be less than or equal to 1
-        actor_batch_size_multiplier: float = 1.0 #this has to be less than 1
-
-        max_replay_size: int = 10000
-        min_replay_size: int = 1000
-        
-        unroll_length: int  = 62
-        
-        # ADDING IN A NETWORK WIDTH ARGUMENT
-        same_network_width: int = 0
-        network_width: int = 256
-        critic_network_width: int = 256
-        actor_network_width: int = 256
-        actor_depth: int = 4
-        critic_depth: int = 4
-        actor_skip_connections: int = 0 # 0 for no skip connections, >= 0 means the frequency of skip connections (every X layers)
-        critic_skip_connections: int = 0 # 0 for no skip connections, >= 0 means the frequency of skip connections (every X layers)
-        
-        num_episodes_per_env: int = 1 #the number of episodes to sample from each env when sampling data 
-        #(to ensure number of batches is consistent as increase batch_size; for now, just a bandaid fix)
-        # should be something like batch_size / 256
-        training_steps_multiplier: int = 1 #should have the same effect as num_episodes_per_env, hmmm
-        use_all_batches: int = 0 # if 1, use all batches; if 0, use a random subset of batches
-        num_sgd_batches_per_training_step: int = 800 # this parameter so as to hold the number of batches constant (no matter batch_size, etc)
-        
-        mrn: int = 0
-        memory_bank: int = 0
-        memory_bank_size: int = batch_size # this can be modified too
-        
-        batchdiv2: int = 0 
-        # if 1, freeze gradients for second half of batch
-        # if 2, split in half along sa and freeze second half of g (Eysenbach ablation, remember it's forward loss)
-        #
-        # use batch_size * 2 and split in half and freeze gradients and all that (Eysenbach ablation), does not 
-        # TODO: if 2, modifies actor such that it uses the half batch size (isolate for critic ablation)
-        # can add 3, 4, etc (if diff between 1 and 2, maybe for batch_size ablation we need to have separate for actor and critic)
-        # add more for instead of discarding second half, just freeze gradients for second half so symmetric with first
-        
-        eval_actor: int = 0
-        # if 0, use deterministic actor for evaluation
-        # if 1, use stochastic actor for evaluation
-        # if 2, sample two actions and take the one with the higher Q value
-        # if K >= 2, sample K actions and take the one with the highest Q value
-        expl_actor: int = 1
-        # if 0, use deterministic actor for exploration/collecting data
-        # if 1, use stochastic actor for exploration/collecting data
-        # if 2, sample two actions and take the one with the higher Q value
-        # if K >= 2, sample K actions and take the one with the highest Q value
-        
-        entropy_param: float = 0.5
-        disable_entropy: int = 0
-        
-        use_relu: int = 0
-        
-        resnet: str = "noishmistake4_nodense"
-        
-        num_render: int = 10
-        
-        
-        
-        # to be filled in runtime
-        env_steps_per_actor_step : int = 0
-        """number of env steps per actor step (computed in runtime)"""
-        num_prefill_env_steps : int = 0
-        """number of env steps to fill the buffer before starting training (computed in runtime)"""
-        num_prefill_actor_steps : int = 0
-        """number of actor steps to fill the buffer before starting training (computed in runtime)"""
-        num_training_steps_per_epoch : int = 0
-        """the number of training steps per epoch(computed in runtime)"""
+    
 
     def make_env(env_id, args):
         print(f"making env with env_id: {env_id}", flush=True)
@@ -530,8 +532,7 @@ def create_dataset(run_dir, num_traj):
         
         return states, actions
 
-    # Collect trajectory
-    NUM_TRAJS = num_traj
+    NUM_TRAJS = num_trajs
 
     states_dataset = np.zeros((1000 * NUM_TRAJS, obs_size))
     actions_dataset = np.zeros((1000 * NUM_TRAJS, action_size))
@@ -542,5 +543,3 @@ def create_dataset(run_dir, num_traj):
         states, actions = collect_trajectory(env_state, actor_params, trajectory_rng)
         states_dataset[i*1000:(i+1)*1000] = states
         actions_dataset[i*1000:(i+1)*1000] = actions
-
-    return states_dataset, actions_dataset
