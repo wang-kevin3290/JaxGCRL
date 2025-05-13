@@ -1,5 +1,3 @@
-# Same as ant maze but add extra parameters, and reset + make_maze function is changed to enable different goal/start pairs
-# We remove the _eval mazes, since they are duplicates (those only used for overall structure now)
 import os
 from typing import Tuple
 
@@ -8,7 +6,7 @@ from brax import math
 from brax.envs.base import PipelineEnv, State
 from brax.io import mjcf
 import jax
-from jax import numpy as jp
+from jax import numpy as jnp
 import mujoco
 import xml.etree.ElementTree as ET
 
@@ -16,44 +14,218 @@ import xml.etree.ElementTree as ET
 # https://github.com/google/brax/blob/main/brax/envs/ant.py
 # Maze creation dapted from: https://github.com/Farama-Foundation/D4RL/blob/master/d4rl/locomotion/maze_env.py
 
-RESET = R = 'r'
-GOAL = G = 'g'
+RESET = R = "r"
+GOAL = G = "g"
 
+
+# U_MAZE = [
+#     [1, 1, 1, 1, 1],
+#     [1, R, G, G, 1],
+#     [1, 1, 1, G, 1],
+#     [1, G, G, G, 1],
+#     [1, 1, 1, 1, 1],
+# ]
+
+# U_MAZE_EVAL = [
+#     [1, 1, 1, 1, 1],
+#     [1, R, 0, 0, 1],
+#     [1, 1, 1, 0, 1],
+#     [1, G, G, G, 1],
+#     [1, 1, 1, 1, 1],
+# ]
+
+
+# BIG_MAZE = [
+#     [1, 1, 1, 1, 1, 1, 1, 1],
+#     [1, R, G, 1, 1, G, G, 1],
+#     [1, G, G, 1, G, G, G, 1],
+#     [1, 1, G, G, G, 1, 1, 1],
+#     [1, G, G, 1, G, G, G, 1],
+#     [1, G, 1, G, G, 1, G, 1],
+#     [1, G, G, G, 1, G, G, 1],
+#     [1, 1, 1, 1, 1, 1, 1, 1],
+# ]
+
+# BIG_MAZE_EVAL = [
+#     [1, 1, 1, 1, 1, 1, 1, 1],
+#     [1, R, 0, 1, 1, G, G, 1],
+#     [1, 0, 0, 1, 0, G, G, 1],
+#     [1, 1, 0, 0, 0, 1, 1, 1],
+#     [1, 0, 0, 1, 0, 0, 0, 1],
+#     [1, 0, 1, G, 0, 1, G, 1],
+#     [1, 0, G, G, 1, G, G, 1],
+#     [1, 1, 1, 1, 1, 1, 1, 1],
+# ]
+
+# HARDEST_MAZE = [
+#     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+#     [1, R, G, G, G, 1, G, G, G, G, G, 1],
+#     [1, G, 1, 1, G, 1, G, 1, G, 1, G, 1],
+#     [1, G, G, G, G, G, G, 1, G, G, G, 1],
+#     [1, G, 1, 1, 1, 1, G, 1, 1, 1, G, 1],
+#     [1, G, G, 1, G, 1, G, G, G, G, G, 1],
+#     [1, 1, G, 1, G, 1, G, 1, G, 1, 1, 1],
+#     [1, G, G, 1, G, G, G, 1, G, G, G, 1],
+#     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+# ]
+
+
+# MAZE_HEIGHT = 0.5
 U_MAZE = [[1, 1, 1, 1, 1],
-          [1, R, 0, 0, 1],
-          [1, 1, 1, 0, 1],
-          [1, G, 0, 0, 1],
+          [1, R, G, G, 1],
+          [1, 1, 1, G, 1],
+          [1, G, G, G, 1],
           [1, 1, 1, 1, 1]]
 
+U_MAZE_EVAL = [[1, 1, 1, 1, 1],
+               [1, R, 0, 0, 1],
+               [1, 1, 1, 0, 1],
+               [1, G, G, G, 1],
+               [1, 1, 1, 1, 1]]
+
+U_MAZE_SINGLE_EVAL = [[1, 1, 1, 1, 1],
+               [1, R, 0, 0, 1],
+               [1, 1, 1, 0, 1],
+               [1, G, 0, 0, 1],
+               [1, 1, 1, 1, 1]]
+
+U_MAZE_EVAL_1f2f3f4f5f = [[1, 1, 1, 1, 1],
+               [1, R, G, G, 1],
+               [1, 1, 1, G, 1],
+               [1, 0, G, G, 1],
+               [1, 1, 1, 1, 1]]
+
+U_MAZE_EVAL_1f2f3f4f = [[1, 1, 1, 1, 1],
+               [1, R, G, G, 1],
+               [1, 1, 1, G, 1],
+               [1, 0, 0, G, 1],
+               [1, 1, 1, 1, 1]]
+
+U_MAZE_EVAL_1f2f3f = [[1, 1, 1, 1, 1],
+               [1, R, G, G, 1],
+               [1, 1, 1, G, 1],
+               [1, 0, 0, 0, 1],
+               [1, 1, 1, 1, 1]]
+
+U_MAZE_EVAL_5f6f = [[1, 1, 1, 1, 1],
+               [1, R, 0, 0, 1],
+               [1, 1, 1, 0, 1],
+               [1, G, G, 0, 1],
+               [1, 1, 1, 1, 1]]
+
+
 U2_MAZE = [[1, 1, 1, 1, 1, 1],
-           [1, R, 0, 0, 0, 1],
-           [1, 1, 1, 1, 0, 1],
-           [1, G, 0, 0, 0, 1],
+           [1, R, G, G, G, 1],
+           [1, 1, 1, 1, G, 1],
+           [1, G, G, G, G, 1],
            [1, 1, 1, 1, 1, 1]]
 
+U2_MAZE_EVAL = [[1, 1, 1, 1, 1, 1],
+                [1, R, 0, 0, 0, 1],
+                [1, 1, 1, 1, 0, 1],
+                [1, G, G, G, G, 1],
+                [1, 1, 1, 1, 1, 1]]
+
 U3_MAZE = [[1, 1, 1, 1, 1, 1, 1],
-           [1, R, 0, 0, 0, 0, 1],
-           [1, 1, 1, 1, 1, 0, 1],
-           [1, G, 0, 0, 0, 0, 1],
+           [1, R, G, G, G, G, 1],
+           [1, 1, 1, 1, 1, G, 1],
+           [1, G, G, G, G, G, 1],
            [1, 1, 1, 1, 1, 1, 1]]
 
+U3_MAZE_EVAL = [[1, 1, 1, 1, 1, 1, 1],
+                [1, R, 0, 0, 0, 0, 1],
+                [1, 1, 1, 1, 1, 0, 1],
+                [1, G, G, G, G, G, 1],
+                [1, 1, 1, 1, 1, 1, 1]]
+
+U3_MAZE_SINGLE_EVAL = [[1, 1, 1, 1, 1, 1, 1],
+                [1, R, 0, 0, 0, 0, 1],
+                [1, 1, 1, 1, 1, 0, 1],
+                [1, G, 0, 0, 0, 0, 1],
+                [1, 1, 1, 1, 1, 1, 1]]
+
 U4_MAZE = [[1, 1, 1, 1, 1],
-           [1, 0, 0, 0, 1],
-           [1, R, 1, 0, 1],
-           [1, 1, 1, 0, 1],
-           [1, G, 1, 0, 1],
-           [1, 0, 0, 0, 1],
+           [1, G, G, G, 1],
+           [1, R, 1, G, 1],
+           [1, 1, 1, G, 1],
+           [1, G, 1, G, 1],
+           [1, G, G, G, 1],
            [1, 1, 1, 1, 1]]
 
+U4_MAZE_EVAL = [[1, 1, 1, 1, 1],
+                [1, 0, 0, 0, 1],
+                [1, R, 1, 0, 1],
+                [1, 1, 1, 0, 1],
+                [1, G, 1, 0, 1],
+                [1, G, G, G, 1],
+                [1, 1, 1, 1, 1]]
+
+
 U5_MAZE = [[1, 1, 1, 1, 1, 1, 1, 1],
-           [1, 0, 0, 0, 0, 0, 0, 1],
-           [1, R, 1, 1, 1, 1, 0, 1],
-           [1, 1, 1, 1, 1, 1, 0, 1],
-           [1, G, 1, 1, 1, 1, 0, 1],
-           [1, 0, 0, 0, 0, 0, 0, 1],
+           [1, G, G, G, G, G, G, 1],
+           [1, R, 1, 1, 1, 1, G, 1],
+           [1, 1, 1, 1, 1, 1, G, 1],
+           [1, G, 1, 1, 1, 1, G, 1],
+           [1, G, G, G, G, G, G, 1],
            [1, 1, 1, 1, 1, 1, 1, 1]]
 
-# CURRENTLY BIG_MAZE, HARDEST_MAZE CANNOT BE USED FOR GENERALIZATION
+U5_MAZE_EVAL = [[1, 1, 1, 1, 1, 1, 1, 1],
+                [1, 0, 0, 0, 0, 0, 0, 1],
+                [1, R, 1, 1, 1, 1, 0, 1],
+                [1, 1, 1, 1, 1, 1, 0, 1],
+                [1, G, 1, 1, 1, 1, G, 1],
+                [1, G, G, G, G, G, G, 1],
+                [1, 1, 1, 1, 1, 1, 1, 1]]
+
+U5_MAZE_SINGLE_EVAL = [[1, 1, 1, 1, 1, 1, 1, 1],
+                [1, 0, 0, 0, 0, 0, 0, 1],
+                [1, R, 1, 1, 1, 1, 0, 1],
+                [1, 1, 1, 1, 1, 1, 0, 1],
+                [1, G, 1, 1, 1, 1, 0, 1],
+                [1, 0, 0, 0, 0, 0, 0, 1],
+                [1, 1, 1, 1, 1, 1, 1, 1]]
+
+U6_MAZE = [[1, 1, 1, 1, 1, 1, 1],
+           [1, G, G, G, G, G, 1],
+           [1, R, 1, 1, 1, G, 1],
+           [1, 1, 1, 1, 1, G, 1],
+           [1, G, 1, 1, 1, G, 1],
+           [1, G, G, G, G, G, 1],
+           [1, 1, 1, 1, 1, 1, 1]]
+
+U6_MAZE_EVAL = [[1, 1, 1, 1, 1, 1, 1],
+           [1, 0, 0, 0, 0, 0, 1],
+           [1, R, 1, 1, 1, 0, 1],
+           [1, 1, 1, 1, 1, 0, 1],
+           [1, G, 1, 1, 1, G, 1],
+           [1, G, G, G, G, G, 1],
+           [1, 1, 1, 1, 1, 1, 1]]
+
+U7_MAZE = [[1, 1, 1, 1, 1, 1],
+           [1, G, G, G, G, 1],
+           [1, R, 1, 1, G, 1],
+           [1, 1, 1, 1, G, 1],
+           [1, G, 1, 1, G, 1],
+           [1, G, G, G, G, 1],
+           [1, 1, 1, 1, 1, 1]]
+
+U7_MAZE_EVAL = [[1, 1, 1, 1, 1, 1],
+           [1, 0, 0, 0, 0, 1],
+           [1, R, 1, 1, 0, 1],
+           [1, 1, 1, 1, 0, 1],
+           [1, G, 1, 1, G, 1],
+           [1, G, G, G, G, 1],
+           [1, 1, 1, 1, 1, 1]]
+
+# U5_MAZE_EVAL = [[1, 1, 1, 1, 1, 1, 1, 1],
+#                 [1, 0, 0, 0, 0, 0, 0, 1],
+#                 [1, R, 1, 1, 1, 1, 0, 1],
+#                 [1, 1, 1, 1, 1, 1, 0, 1],
+#                 [1, G, 1, 1, 1, 1, 0, 1],
+#                 [1, G, 0, 0, 0, G, G, 1],
+#                 [1, 1, 1, 1, 1, 1, 1, 1]]
+
+
 BIG_MAZE = [[1, 1, 1, 1, 1, 1, 1, 1],
             [1, R, G, 1, 1, G, G, 1],
             [1, G, G, 1, G, G, G, 1],
@@ -62,6 +234,15 @@ BIG_MAZE = [[1, 1, 1, 1, 1, 1, 1, 1],
             [1, G, 1, G, G, 1, G, 1],
             [1, G, G, G, 1, G, G, 1],
             [1, 1, 1, 1, 1, 1, 1, 1]]
+
+BIG_MAZE_EVAL = [[1, 1, 1, 1, 1, 1, 1, 1],
+                 [1, R, 0, 1, 1, G, G, 1],
+                 [1, 0, 0, 1, 0, 0, G, 1],
+                 [1, 1, 0, 0, 0, 1, 1, 1],
+                 [1, 0, 0, 1, 0, 0, 0, 1],
+                 [1, 0, 1, G, 0, 1, G, 1],
+                 [1, 0, G, G, 1, G, G, 1],
+                 [1, 1, 1, 1, 1, 1, 1, 1]]
 
 HARDEST_MAZE = [[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
                 [1, R, G, G, G, 1, G, G, G, G, G, 1],
@@ -76,183 +257,97 @@ HARDEST_MAZE = [[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
 MAZE_HEIGHT = 0.5
 
 
-# dfs from R to G to get the list of coordinates in the forward direction
-def get_forward_path(maze_layout):
-    start, end = None, None
-    for i in range(len(maze_layout)):
-        for j in range(len(maze_layout[0])):
-            if maze_layout[i][j] == RESET:
-                start = (i, j)
-            elif maze_layout[i][j] == GOAL:
-                end = (i, j)
-    return dfs(maze_layout, start, end)
+def find_starts(structure, size_scaling):
+    starts = []
+    for i in range(len(structure)):
+        for j in range(len(structure[0])):
+            if structure[i][j] == RESET:
+                starts.append([i * size_scaling, j * size_scaling])
+
+    return jnp.array(starts)
 
 
-# this is a quasi dfs cuz there's only one path (not recursive, it's iterative)
-def dfs(maze_layout, start, end):
-    dx = [0, 1, 0, -1]
-    dy = [1, 0, -1, 0]
+def find_goals(structure, size_scaling):
+    goals = []
+    for i in range(len(structure)):
+        for j in range(len(structure[0])):
+            if structure[i][j] == GOAL:
+                goals.append([i * size_scaling, j * size_scaling])
 
-    prev_x, prev_y = None, None
-    curr_x, curr_y = start
-
-    path = []
-
-    while not (curr_x == end[0] and curr_y == end[1]):
-        path.append((curr_x, curr_y))
-        for direction in range(4):
-            next_x, next_y = curr_x + dx[direction], curr_y + dy[direction]
-            assert not (next_x < 0 or next_x >= len(maze_layout) or next_y < 0 or next_y >= len(
-                maze_layout[0]))  # should be fully surrounded by walls
-            if maze_layout[next_x][next_y] == 1:
-                continue
-            if next_x == prev_x and next_y == prev_y:
-                continue
-            prev_x, prev_y = curr_x, curr_y
-            curr_x, curr_y = next_x, next_y
-            break
-
-    path.append(end)
-    return path
+    return jnp.array(goals)
 
 
-# def get_start_goal(maze_layout, generalization_config, rng):
-#     sg_pairs = [] #valid start goal pairs
-
-#     if "1f" in generalization_config:
-#         forward_path = get_forward_path(maze_layout)
-#         pairs = []
-#         for i in range(len(forward_path) - 1):
-#             pairs.append((forward_path[i], forward_path[i + 1]))
-#         sg_pairs.extend(pairs)
-#     if "2f" in generalization_config:
-#         forward_path = get_forward_path(maze_layout)
-#         pairs = []
-#         for i in range(len(forward_path) - 2):
-#             pairs.append((forward_path[i], forward_path[i + 2]))
-#         sg_pairs.extend(pairs)
-#     if "3f" in generalization_config:
-#         forward_path = get_forward_path(maze_layout)
-#         pairs = []
-#         for i in range(len(forward_path) - 3):
-#             pairs.append((forward_path[i], forward_path[i + 3]))
-#         sg_pairs.extend(pairs)
-#     if "4f" in generalization_config:
-#         forward_path = get_forward_path(maze_layout)
-#         pairs = []
-#         for i in range(len(forward_path) - 4):
-#             pairs.append((forward_path[i], forward_path[i + 4]))
-#         sg_pairs.extend(pairs)
-#     if "5f" in generalization_config:
-#         forward_path = get_forward_path(maze_layout)
-#         pairs = []
-#         for i in range(len(forward_path) - 5):
-#             pairs.append((forward_path[i], forward_path[i + 5]))
-#         sg_pairs.extend(pairs)
-
-#     sg_pairs = jp.array(sg_pairs)
-#     idx = jax.random.randint(rng, (1,), 0, len(sg_pairs))
-#     random_pair = jp.array(sg_pairs[idx])[0]
-#     return random_pair
-
-
-def get_start_goal(maze_layout, generalization_config, rng):
-    sg_pairs = []  # valid start goal pairs
-    forward_path = get_forward_path(maze_layout)
-    num_valid_pairs = sum([len(forward_path) - i for i in range(1, 6) if f"{i}f" in generalization_config])
-    num_distances = len(generalization_config.split("f")[:-1])
-    weights = []
-
-    for config in generalization_config.split("f")[:-1]:  # gets rid of empty string at the end
-        config = int(config)
-        pairs = []
-        for i in range(len(forward_path) - config):
-            pairs.append((forward_path[i], forward_path[i + config]))
-            weight = num_valid_pairs / num_distances / (len(forward_path) - config)
-            weights.append(weight)
-        sg_pairs.extend(pairs)
-
-    print(f"num_valid_pairs: {num_valid_pairs}, sg_pairs: {sg_pairs}, weights: {weights}", flush=True)
-
-    sg_pairs = jp.array(sg_pairs)
-    weights = jp.array(weights)
-    # idx = jax.random.randint(rng, (1,), 0, len(sg_pairs))
-    idx = jax.random.choice(rng, len(sg_pairs), p=weights)
-    random_pair = jp.array(sg_pairs[idx])
-
-    return random_pair
-
-
-# def get_start_goal(maze_layout, generalization_config, rng):
-#     # Split rng for multiple random operations
-#     rng, rng1 = jax.random.split(rng)
-
-#     # Parse available distances from config
-#     available_distances = []
-#     for i in range(1, 6):
-#         if f"{i}f" in generalization_config:
-#             available_distances.append(i)
-
-#     # Randomly select one of the available distances
-#     available_distances = jp.array(available_distances)
-#     selected_distance = jax.random.choice(rng, available_distances)
-
-#     # selected_distance = jax.random.randint(rng, (1,), 0, len(available_distances))
-#     # selected_distance = jp.array(available_distances[selected_distance])[0]  # Direct indexing is fine here
-
-#     # Get pairs for the selected distance only
-#     forward_path = get_forward_path(maze_layout)
-#     pairs = []
-#     for i in range(len(forward_path) - selected_distance):
-#         pairs.append((forward_path[i], forward_path[i + selected_distance]))
-
-#     # Select random pair from the chosen distance
-#     pairs = jp.array(pairs)
-#     idx = jax.random.randint(rng1, (1,), 0, len(pairs))
-#     random_pair = jp.array(pairs[idx])[0]
-#     return random_pair
-
-
-# def find_robot(structure, size_scaling):
-#     for i in range(len(structure)):
-#         for j in range(len(structure[0])):
-#             if structure[i][j] == RESET:
-#                 return i * size_scaling, j * size_scaling
-
-# def find_goals(structure, size_scaling):
-#     goals = []
-#     for i in range(len(structure)):
-#         for j in range(len(structure[0])):
-#             if structure[i][j] == GOAL:
-#                 goals.append([i * size_scaling, j * size_scaling])
-
-#     return jp.array(goals)
-
-def get_maze_layout(maze_layout_name):
+# Create a xml with maze and a list of possible goal positions
+# def make_maze(maze_layout_name, maze_size_scaling):
+#     if maze_layout_name == "u_maze":
+#         maze_layout = U_MAZE
+#     elif maze_layout_name == "u_maze_eval":
+#         maze_layout = U_MAZE_EVAL
+#     elif maze_layout_name == "big_maze":
+#         maze_layout = BIG_MAZE
+#     elif maze_layout_name == "big_maze_eval":
+#         maze_layout = BIG_MAZE_EVAL
+#     elif maze_layout_name == "hardest_maze":
+#         maze_layout = HARDEST_MAZE
+#     else:
+#         raise ValueError(f"Unknown maze layout: {maze_layout_name}")
+def make_maze(maze_layout_name, maze_size_scaling):
     if maze_layout_name == "u_maze":
         maze_layout = U_MAZE
+    elif maze_layout_name == "u_maze_eval":
+        maze_layout = U_MAZE_EVAL
+    elif maze_layout_name == "u_maze_single_eval":
+        maze_layout = U_MAZE_SINGLE_EVAL
+    elif maze_layout_name == "u_maze_eval_1f2f3f4f5f":
+        maze_layout = U_MAZE_EVAL_1f2f3f4f5f
+    elif maze_layout_name == "u_maze_eval_1f2f3f4f":
+        maze_layout = U_MAZE_EVAL_1f2f3f4f
+    elif maze_layout_name == "u_maze_eval_1f2f3f":
+        maze_layout = U_MAZE_EVAL_1f2f3f
+    elif maze_layout_name == "u_maze_eval_5f6f":
+        maze_layout = U_MAZE_EVAL_5f6f
     elif maze_layout_name == "u2_maze":
         maze_layout = U2_MAZE
+    elif maze_layout_name == "u2_maze_eval":
+        maze_layout = U2_MAZE_EVAL
     elif maze_layout_name == "u3_maze":
         maze_layout = U3_MAZE
+    elif maze_layout_name == "u3_maze_eval":
+        maze_layout = U3_MAZE_EVAL
+    elif maze_layout_name == "u3_maze_single_eval":
+        maze_layout = U3_MAZE_SINGLE_EVAL
     elif maze_layout_name == "u4_maze":
         maze_layout = U4_MAZE
+    elif maze_layout_name == "u4_maze_eval":
+        maze_layout = U4_MAZE_EVAL
     elif maze_layout_name == "u5_maze":
         maze_layout = U5_MAZE
+    elif maze_layout_name == "u5_maze_eval":
+        maze_layout = U5_MAZE_EVAL
+    elif maze_layout_name == "u6_maze":
+        maze_layout = U6_MAZE
+    elif maze_layout_name == "u6_maze_eval":
+        maze_layout = U6_MAZE_EVAL
+    elif maze_layout_name == "u7_maze":
+        maze_layout = U7_MAZE
+    elif maze_layout_name == "u7_maze_eval":
+        maze_layout = U7_MAZE_EVAL
+    elif maze_layout_name == "u5_maze_single_eval":
+        maze_layout = U5_MAZE_SINGLE_EVAL
 
     elif maze_layout_name == "big_maze":
         maze_layout = BIG_MAZE
+    elif maze_layout_name == "big_maze_eval":
+        maze_layout = BIG_MAZE_EVAL
     elif maze_layout_name == "hardest_maze":
         maze_layout = HARDEST_MAZE
     else:
         raise ValueError(f"Unknown maze layout: {maze_layout_name}")
 
-    return maze_layout
+    xml_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "assets", "ant_maze.xml")
 
-
-# Create a xml with maze with the starting position
-def make_maze(maze_layout, maze_size_scaling):
-    xml_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'assets', "ant_maze.xml")
+    possible_starts = find_starts(maze_layout, maze_size_scaling)
+    possible_goals = find_goals(maze_layout, maze_size_scaling)
 
     tree = ET.parse(xml_path)
     worldbody = tree.find(".//worldbody")
@@ -262,14 +357,13 @@ def make_maze(maze_layout, maze_size_scaling):
             struct = maze_layout[i][j]
             if struct == 1:
                 ET.SubElement(
-                    worldbody, "geom",
+                    worldbody,
+                    "geom",
                     name="block_%d_%d" % (i, j),
-                    pos="%f %f %f" % (i * maze_size_scaling,
-                                      j * maze_size_scaling,
-                                      MAZE_HEIGHT / 2 * maze_size_scaling),
-                    size="%f %f %f" % (0.5 * maze_size_scaling,
-                                       0.5 * maze_size_scaling,
-                                       MAZE_HEIGHT / 2 * maze_size_scaling),
+                    pos="%f %f %f"
+                    % (i * maze_size_scaling, j * maze_size_scaling, MAZE_HEIGHT / 2 * maze_size_scaling),
+                    size="%f %f %f"
+                    % (0.5 * maze_size_scaling, 0.5 * maze_size_scaling, MAZE_HEIGHT / 2 * maze_size_scaling),
                     type="box",
                     material="",
                     contype="1",
@@ -277,46 +371,40 @@ def make_maze(maze_layout, maze_size_scaling):
                     rgba="0.7 0.5 0.3 1.0",
                 )
 
-    torso = tree.find(".//numeric[@name='init_qpos']")
-    data = torso.get("data")
-    torso.set("data", f"{0} {0} " + data)
-
     tree = tree.getroot()
     xml_string = ET.tostring(tree)
 
-    return xml_string
+    return xml_string, possible_starts, possible_goals
 
 
-class AntMazeGeneralization(PipelineEnv):
+class AntMaze(PipelineEnv):
     def __init__(
-            self,
-            ctrl_cost_weight=0.5,
-            use_contact_forces=False,
-            contact_cost_weight=5e-4,
-            healthy_reward=1.0,
-            terminate_when_unhealthy=True,
-            healthy_z_range=(0.2, 1.0),
-            contact_force_range=(-1.0, 1.0),
-            reset_noise_scale=0.1,
-            exclude_current_positions_from_observation=True,
-            backend="generalized",
-            maze_layout_name="u_maze",
-            maze_size_scaling=4.0,
-            generalization_config="1f",  # 1f means one forward
-            **kwargs,
+        self,
+        ctrl_cost_weight=0.5,
+        use_contact_forces=False,
+        contact_cost_weight=5e-4,
+        healthy_reward=1.0,
+        terminate_when_unhealthy=True,
+        healthy_z_range=(0.2, 1.0),
+        contact_force_range=(-1.0, 1.0),
+        reset_noise_scale=0.1,
+        exclude_current_positions_from_observation=False,
+        backend="generalized",
+        maze_layout_name="u_maze",
+        maze_size_scaling=4.0,
+        dense_reward: bool = False,
+        **kwargs,
     ):
-        self.maze_layout = get_maze_layout(maze_layout_name)
-        self.maze_size_scaling = maze_size_scaling
-        self.generalization_config = generalization_config
-        # start, goal = get_start_goal(maze_layout, generalization_config)
+        xml_string, possible_starts, possible_goals = make_maze(maze_layout_name, maze_size_scaling)
 
-        xml_string = make_maze(self.maze_layout, self.maze_size_scaling)
         sys = mjcf.loads(xml_string)
+        self.possible_starts = possible_starts
+        self.possible_goals = possible_goals
 
         n_frames = 5
 
         if backend in ["spring", "positional"]:
-            sys = sys.replace(dt=0.005)
+            sys = sys.tree_replace({"opt.timestep": 0.005})
             n_frames = 10
 
         if backend == "mjx":
@@ -331,11 +419,7 @@ class AntMazeGeneralization(PipelineEnv):
 
         if backend == "positional":
             # TODO: does the same actuator strength work as in spring
-            sys = sys.replace(
-                actuator=sys.actuator.replace(
-                    gear=200 * jp.ones_like(sys.actuator.gear)
-                )
-            )
+            sys = sys.replace(actuator=sys.actuator.replace(gear=200 * jnp.ones_like(sys.actuator.gear)))
 
         kwargs["n_frames"] = kwargs.get("n_frames", n_frames)
 
@@ -349,9 +433,11 @@ class AntMazeGeneralization(PipelineEnv):
         self._healthy_z_range = healthy_z_range
         self._contact_force_range = contact_force_range
         self._reset_noise_scale = reset_noise_scale
-        self._exclude_current_positions_from_observation = (
-            exclude_current_positions_from_observation
-        )
+        self._exclude_current_positions_from_observation = exclude_current_positions_from_observation
+        self.dense_reward = dense_reward
+        self.state_dim = 29
+        self.goal_indices = jnp.array([0, 1])
+        self.goal_reach_thresh = 0.5
 
         if self._use_contact_forces:
             raise NotImplementedError("use_contact_forces not implemented.")
@@ -360,28 +446,24 @@ class AntMazeGeneralization(PipelineEnv):
         """Resets the environment to an initial state."""
 
         rng, rng1, rng2, rng3 = jax.random.split(rng, 4)
-        start, goal = get_start_goal(self.maze_layout, self.generalization_config, rng3)
-
-        print(f"start: {start}, goal: {goal}", flush=True)
-
-        start_pos = jp.array([start[0] * self.maze_size_scaling, start[1] * self.maze_size_scaling])
-        goal_pos = jp.array([goal[0] * self.maze_size_scaling, goal[1] * self.maze_size_scaling])
 
         low, hi = -self._reset_noise_scale, self._reset_noise_scale
-        q = self.sys.init_q + jax.random.uniform(
-            rng1, (self.sys.q_size(),), minval=low, maxval=hi
-        )
-        qd = hi * jax.random.normal(rng2, (self.sys.qd_size(),))
+        q = self.sys.init_q + jax.random.uniform(rng, (self.sys.q_size(),), minval=low, maxval=hi)
+        qd = hi * jax.random.normal(rng1, (self.sys.qd_size(),))
 
-        # set the target q, qd
-        q = q.at[:2].set(start_pos)
-        q = q.at[-2:].set(goal_pos)
+        # set the start and target q, qd
+        start = self._random_start(rng2)
+        q = q.at[:2].set(start)
+
+        target = self._random_target(rng3)
+        q = q.at[-2:].set(target)
+
         qd = qd.at[-2:].set(0)
 
         pipeline_state = self.pipeline_init(q, qd)
         obs = self._get_obs(pipeline_state)
 
-        reward, done, zero = jp.zeros(3)
+        reward, done, zero = jnp.zeros(3)
         metrics = {
             "reward_forward": zero,
             "reward_survive": zero,
@@ -395,45 +477,44 @@ class AntMazeGeneralization(PipelineEnv):
             "forward_reward": zero,
             "dist": zero,
             "success": zero,
-            "success_easy": zero
+            "success_easy": zero,
         }
-        info = {"seed": 0}
         state = State(pipeline_state, obs, reward, done, metrics)
-        state.info.update(info)
         return state
 
-    # Todo rename seed to traj_id
     def step(self, state: State, action: jax.Array) -> State:
         """Run one timestep of the environment's dynamics."""
         pipeline_state0 = state.pipeline_state
         pipeline_state = self.pipeline_step(pipeline_state0, action)
 
-        if "steps" in state.info.keys():
-            seed = state.info["seed"] + jp.where(state.info["steps"], 0, 1)
-        else:
-            seed = state.info["seed"]
-        info = {"seed": seed}
-
         velocity = (pipeline_state.x.pos[0] - pipeline_state0.x.pos[0]) / self.dt
         forward_reward = velocity[0]
 
         min_z, max_z = self._healthy_z_range
-        is_healthy = jp.where(pipeline_state.x.pos[0, 2] < min_z, 0.0, 1.0)
-        is_healthy = jp.where(pipeline_state.x.pos[0, 2] > max_z, 0.0, is_healthy)
+        is_healthy = jnp.where(pipeline_state.x.pos[0, 2] < min_z, 0.0, 1.0)
+        is_healthy = jnp.where(pipeline_state.x.pos[0, 2] > max_z, 0.0, is_healthy)
         if self._terminate_when_unhealthy:
             healthy_reward = self._healthy_reward
         else:
             healthy_reward = self._healthy_reward * is_healthy
-        ctrl_cost = self._ctrl_cost_weight * jp.sum(jp.square(action))
+        ctrl_cost = self._ctrl_cost_weight * jnp.sum(jnp.square(action))
         contact_cost = 0.0
 
+        old_obs = self._get_obs(pipeline_state0)
+        old_dist = jnp.linalg.norm(old_obs[:2] - old_obs[-2:])
         obs = self._get_obs(pipeline_state)
+        dist = jnp.linalg.norm(obs[:2] - obs[-2:])
+        vel_to_target = (old_dist - dist) / self.dt
+        success = jnp.array(dist < self.goal_reach_thresh, dtype=float)
+        success_easy = jnp.array(dist < 2.0, dtype=float)
+
+        if self.dense_reward:
+            reward = 10 * vel_to_target + healthy_reward - ctrl_cost - contact_cost
+        else:
+            reward = success
+
         done = 1.0 - is_healthy if self._terminate_when_unhealthy else 0.0
 
-        dist = jp.linalg.norm(obs[:2] - obs[-2:])
-        success = jp.array(dist < 0.5, dtype=float)
-        success_easy = jp.array(dist < 2., dtype=float)
-        reward = -dist + healthy_reward - ctrl_cost - contact_cost
         state.metrics.update(
             reward_forward=forward_reward,
             reward_survive=healthy_reward,
@@ -447,12 +528,9 @@ class AntMazeGeneralization(PipelineEnv):
             forward_reward=forward_reward,
             dist=dist,
             success=success,
-            success_easy=success_easy
+            success_easy=success_easy,
         )
-        state.info.update(info)
-        return state.replace(
-            pipeline_state=pipeline_state, obs=obs, reward=reward, done=done
-        )
+        return state.replace(pipeline_state=pipeline_state, obs=obs, reward=reward, done=done)
 
     def _get_obs(self, pipeline_state: base.State) -> jax.Array:
         """Observe ant body position and velocities."""
@@ -464,9 +542,14 @@ class AntMazeGeneralization(PipelineEnv):
         if self._exclude_current_positions_from_observation:
             qpos = qpos[2:]
 
-        return jp.concatenate([qpos] + [qvel] + [target_pos])
+        return jnp.concatenate([qpos] + [qvel] + [target_pos])
 
-    # def _random_target(self, rng: jax.Array) -> Tuple[jax.Array, jax.Array]:
-    #     """Returns a random target location chosen from possibilities specified in the maze layout."""
-    #     idx = jax.random.randint(rng, (1,), 0, len(self.possible_goals))
-    #     return rng, jp.array(self.possible_goals[idx])[0]
+    def _random_target(self, rng: jax.Array) -> jax.Array:
+        """Returns a random target location chosen from possibilities specified in the maze layout."""
+        idx = jax.random.randint(rng, (1,), 0, len(self.possible_goals))
+        return jnp.array(self.possible_goals[idx])[0]
+
+    def _random_start(self, rng: jax.Array) -> jax.Array:
+        """Returns a random start location chosen from possibilities specified in the maze layout."""
+        idx = jax.random.randint(rng, (1,), 0, len(self.possible_starts))
+        return jnp.array(self.possible_starts[idx])[0]

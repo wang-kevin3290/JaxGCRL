@@ -17,7 +17,6 @@ from envs.reacher import Reacher
 from envs.pusher import Pusher, PusherReacher
 from envs.pusher2 import Pusher2
 from envs.ant_ball import AntBall
-from envs.ant_maze import AntMaze
 from envs.humanoid import Humanoid
 from envs.humanoid_maze import HumanoidMaze
 from envs.ant_push import AntPush
@@ -114,17 +113,23 @@ def create_env(env_name: str, backend: str = None, use_dense_reward=False, **kwa
         assert backend == "mjx" or backend is None
         env = AntPush(backend=backend or "mjx")
     elif "maze" in env_name:
-        if "ant_ball" in env_name:
-            env = AntBallMaze(backend=backend or "spring", maze_layout_name=env_name[9:])
-        elif "ant" in env_name:
+        if "4" in env_name or "5" in env_name:
+            from envs.ant_maze_generalization import AntMaze
             # Possible env_name = {'ant_u_maze', 'ant_big_maze', 'ant_hardest_maze'}
             env = AntMaze(backend=backend or "spring", maze_layout_name=env_name[4:], dense_reward=use_dense_reward)
-        elif "humanoid" in env_name:
-            # Possible env_name = {'humanoid_u_maze', 'humanoid_big_maze', 'humanoid_hardest_maze'}
-            env = HumanoidMaze(backend=backend or "spring", maze_layout_name=env_name[9:])
         else:
-            # Possible env_name = {'simple_u_maze', 'simple_big_maze', 'simple_hardest_maze'}
-            env = SimpleMaze(backend=backend or "spring", maze_layout_name=env_name[7:])
+            from envs.ant_maze import AntMaze
+            if "ant_ball" in env_name:
+                env = AntBallMaze(backend=backend or "spring", maze_layout_name=env_name[9:])
+            elif "ant" in env_name:
+                # Possible env_name = {'ant_u_maze', 'ant_big_maze', 'ant_hardest_maze'}
+                env = AntMaze(backend=backend or "spring", maze_layout_name=env_name[4:], dense_reward=use_dense_reward)
+            elif "humanoid" in env_name:
+                # Possible env_name = {'humanoid_u_maze', 'humanoid_big_maze', 'humanoid_hardest_maze'}
+                env = HumanoidMaze(backend=backend or "spring", maze_layout_name=env_name[9:])
+            else:
+                # Possible env_name = {'simple_u_maze', 'simple_big_maze', 'simple_hardest_maze'}
+                env = SimpleMaze(backend=backend or "spring", maze_layout_name=env_name[7:])
     elif env_name == "cheetah":
         env = Halfcheetah()
     elif env_name == "pusher_easy":
