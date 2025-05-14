@@ -5,7 +5,6 @@ import pickle
 
 import wandb
 from brax.io import model
-from pyinstrument import Profiler
 import random
 
 
@@ -125,10 +124,8 @@ if __name__ == "__main__":
         group=args.group_name,
         name=args.exp_name,
         config=vars(args),
-        mode="offline" if args.log_wandb else "disabled",
+        mode="online" if args.log_wandb else "disabled",
     )
 
-    with Profiler(interval=0.1) as profiler:
-        main(args)
-    profiler.print()
-    profiler.open_in_browser()
+
+    main(args)
