@@ -11,6 +11,7 @@ import wandb_osh
 import numpy as np
 import flax.linen as nn
 import jax.numpy as jnp
+import math
 
 from brax import envs
 from etils import epath
@@ -26,6 +27,125 @@ from evaluator import CrlEvaluator
 from buffer import TrajectoryUniformSamplingQueue
 from memory_bank import MemoryBank, MemoryBankState
 
+EPS = 1e-8
+
+
+def l2normalize(
+        x: jnp.ndarray,
+        axis: int,
+) -> jnp.ndarray:
+    l2norm = jnp.linalg.norm(x, ord=2, axis=axis, keepdims=True)
+    x = x / jnp.maximum(l2norm, EPS)
+
+    return x
+
+
+class Scaler(nn.Module):
+    dim: int
+    init: float = 1.0
+    scale: float = 1.0
+
+    def setup(self):
+        self.scaler = self.param(
+            "scaler",
+            nn.initializers.constant(1.0 * self.scale),
+            self.dim,
+        )
+        self.forward_scaler = self.init / self.scale
+
+    def __call__(self, x):
+        return self.scaler * self.forward_scaler * x
+
+
+class HyperDense(nn.Module):
+    hidden_dim: int
+
+    def setup(self):
+        self.w = nn.Dense(
+            name="hyper_dense",
+            features=self.hidden_dim,
+            kernel_init=nn.initializers.orthogonal(scale=1.0, column_axis=0),
+            use_bias=False,  # important!
+        )
+
+    def __call__(self, x):
+        return self.w(x)
+
+
+class HyperMLP(nn.Module):
+    hidden_dim: int
+    out_dim: int
+    scaler_init: float
+    scaler_scale: float
+    eps: float = 1e-8
+
+    def setup(self):
+        self.w1 = HyperDense(self.hidden_dim)
+        self.scaler = Scaler(self.hidden_dim, self.scaler_init, self.scaler_scale)
+        self.w2 = HyperDense(self.out_dim)
+
+    def __call__(self, x: jnp.ndarray) -> jnp.ndarray:
+        x = self.w1(x)
+        x = self.scaler(x)
+        # `eps` is required to prevent zero vector.
+        x = nn.relu(x) + self.eps
+        x = self.w2(x)
+        x = l2normalize(x, axis=-1)
+        return x
+
+
+class HyperEmbedder(nn.Module):
+    hidden_dim: int
+    scaler_init: float
+    scaler_scale: float
+    c_shift: float
+
+    def setup(self):
+        self.w = HyperDense(self.hidden_dim)
+        self.scaler = Scaler(self.hidden_dim, self.scaler_init, self.scaler_scale)
+
+    def __call__(self, x: jnp.ndarray) -> jnp.ndarray:
+        new_axis = jnp.ones((x.shape[:-1] + (1,))) * self.c_shift
+        x = jnp.concatenate([x, new_axis], axis=-1)
+        x = l2normalize(x, axis=-1)
+        x = self.w(x)
+        x = self.scaler(x)
+        x = l2normalize(x, axis=-1)
+
+        return x
+
+
+class HyperLERPBlock(nn.Module):
+    hidden_dim: int
+    scaler_init: float
+    scaler_scale: float
+    alpha_init: float
+    alpha_scale: float
+
+    expansion: int = 4
+
+    def setup(self):
+        self.mlp = HyperMLP(
+            hidden_dim=self.hidden_dim * self.expansion,
+            out_dim=self.hidden_dim,
+            scaler_init=self.scaler_init / math.sqrt(self.expansion),
+            scaler_scale=self.scaler_scale / math.sqrt(self.expansion),
+        )
+        self.alpha_scaler = Scaler(
+            self.hidden_dim,
+            init=self.alpha_init,
+            scale=self.alpha_scale,
+        )
+
+    def __call__(self, x: jnp.ndarray) -> jnp.ndarray:
+        residual = x
+        x = self.mlp(x)
+        x = residual + self.alpha_scaler(x - residual)
+        x = l2normalize(x, axis=-1)
+
+        return x
+
+
 @dataclass
 class Args:
     exp_name: str = "train" # os.path.basename(__file__)[: -len(".py")]
@@ -33,7 +153,7 @@ class Args:
     torch_deterministic: bool = True
     cuda: bool = True
     track: bool = True
-    wandb_project_name: str = "ant_big_maze_jaxgcrl_env"
+    wandb_project_name: str = "rebuttal_neurips"
     wandb_entity: str = 'cl-probing'
     wandb_mode: str = 'online'
     wandb_dir: str = '.'
@@ -49,6 +169,7 @@ class Args:
     obs_dim: int = 0
     goal_start_idx: int = 0
     goal_end_idx: int = 0
+    use_simba: int = 0
 
     # Algorithm specific arguments
     total_env_steps: int = 100000000 # 50000000
@@ -136,6 +257,57 @@ class Args:
     num_training_steps_per_epoch : int = 0
     """the number of training steps per epoch(computed in runtime)"""
 
+class EncoderSimba(nn.Module):
+    repr_dim: int = 64
+    network_width: int = 256
+    network_depth: int = 4
+    skip_connections: int = (
+        0  # 0 for no skip connections, >= 0 means the frequency of skip connections (every X layers)
+    )
+    use_relu: bool = False
+    use_ln: bool = False
+
+    def setup(self):
+        self.num_blocks: int = self.network_depth - 1  # Because we have also embedder
+        self.hidden_dim: int = self.network_width
+        self.scaler_init: float = math.sqrt(2 / self.network_width)
+        self.scaler_scale: float = math.sqrt(2 / self.network_width)
+        self.alpha_init: float = 1 / (self.num_blocks + 1)
+        self.alpha_scale: float = 1 / math.sqrt(self.network_width)
+        self.c_shift: float = 3
+
+        self.embedder = HyperEmbedder(
+            hidden_dim=self.hidden_dim,
+            scaler_init=self.scaler_init,
+            scaler_scale=self.scaler_scale,
+            c_shift=self.c_shift,
+        )
+        self.encoder = nn.Sequential(
+            [
+                HyperLERPBlock(
+                    hidden_dim=self.hidden_dim,
+                    scaler_init=self.scaler_init,
+                    scaler_scale=self.scaler_scale,
+                    alpha_init=self.alpha_init,
+                    alpha_scale=self.alpha_scale,
+                )
+                for _ in range(self.num_blocks)
+            ]
+        )
+
+    @nn.compact
+    def __call__(self, data: jnp.ndarray):
+        lecun_unfirom = variance_scaling(1 / 3, "fan_in", "uniform")
+        bias_init = nn.initializers.zeros
+
+        x = data
+        x = self.embedder(x)
+        x = self.encoder(x)
+
+        x = nn.Dense(self.repr_dim, kernel_init=lecun_unfirom, bias_init=bias_init)(x)
+        return x
+
+
 lecun_unfirom = variance_scaling(1/3, "fan_in", "uniform")
 bias_init = nn.initializers.zeros
 def residual_block(x, width, normalize, activation):
@@ -155,14 +327,14 @@ def residual_block(x, width, normalize, activation):
     x = x + identity
     return x
 
-class SA_encoder(nn.Module):
+class Encoder(nn.Module):
     norm_type = "layer_norm"
     network_width: int = 1024
     network_depth: int = 4
     skip_connections: int = 0
     use_relu: int = 0
     @nn.compact
-    def __call__(self, s: jnp.ndarray, a: jnp.ndarray):
+    def __call__(self, data: jnp.ndarray):
 
         lecun_unfirom = variance_scaling(1/3, "fan_in", "uniform")
         bias_init = nn.initializers.zeros
@@ -177,41 +349,7 @@ class SA_encoder(nn.Module):
         else:
             activation = nn.swish
             
-        x = jnp.concatenate([s, a], axis=-1)
-        #Initial layer
-        x = nn.Dense(self.network_width, kernel_init=lecun_unfirom, bias_init=bias_init)(x)
-        x = normalize(x)
-        x = activation(x)
-        #Residual blocks
-        for i in range(self.network_depth // 4):
-            x = residual_block(x, self.network_width, normalize, activation)
-        #Final layer
-        x = nn.Dense(64, kernel_init=lecun_unfirom, bias_init=bias_init)(x)
-        return x
-    
-class G_encoder(nn.Module):
-    norm_type = "layer_norm"
-    network_width: int = 1024
-    network_depth: int = 4
-    skip_connections: int = 0
-    use_relu: int = 0
-    @nn.compact
-    def __call__(self, g: jnp.ndarray):
-
-        lecun_unfirom = variance_scaling(1/3, "fan_in", "uniform")
-        bias_init = nn.initializers.zeros
-
-        if self.norm_type == "layer_norm":
-            normalize = lambda x: nn.LayerNorm()(x)
-        else:
-            normalize = lambda x: x
-        
-        if self.use_relu:
-            activation = nn.relu
-        else:
-            activation = nn.swish
-        
-        x = g
+        x = data
         #Initial layer
         x = nn.Dense(self.network_width, kernel_init=lecun_unfirom, bias_init=bias_init)(x)
         x = normalize(x)
@@ -607,9 +745,14 @@ if __name__ == "__main__":
     )
 
     # Critic
-    sa_encoder = SA_encoder(network_width=args.critic_network_width, network_depth=args.critic_depth, skip_connections=args.critic_skip_connections, use_relu=args.use_relu)
-    sa_encoder_params = sa_encoder.init(sa_key, np.ones([1, args.obs_dim]), np.ones([1, action_size]))
-    g_encoder = G_encoder(network_width=args.critic_network_width, network_depth=args.critic_depth, skip_connections=args.critic_skip_connections, use_relu=args.use_relu)
+    if args.use_simba==1:
+        EncoderCLass = EncoderSimba
+        print("Using simba encoder")
+    else:
+        EncoderCLass = Encoder
+    sa_encoder = EncoderCLass(network_width=args.critic_network_width, network_depth=args.critic_depth, skip_connections=args.critic_skip_connections, use_relu=args.use_relu)
+    sa_encoder_params = sa_encoder.init(sa_key, np.ones([1, args.obs_dim+action_size]))
+    g_encoder = EncoderCLass(network_width=args.critic_network_width, network_depth=args.critic_depth, skip_connections=args.critic_skip_connections, use_relu=args.use_relu)
     g_encoder_params = g_encoder.init(g_key, np.ones([1, args.goal_end_idx - args.goal_start_idx]))
     # c = jnp.asarray(0.0, dtype=jnp.float32) (NOT USED IN CODE, WHATS THIS)
     
@@ -852,7 +995,7 @@ if __name__ == "__main__":
             log_prob = log_prob.sum(-1)           # dimension = B
 
             sa_encoder_params, g_encoder_params = critic_params["sa_encoder"], critic_params["g_encoder"]
-            sa_repr = sa_encoder.apply(sa_encoder_params, state, action)
+            sa_repr = sa_encoder.apply(sa_encoder_params, jnp.concatenate([state, action], axis=-1))
             g_repr = g_encoder.apply(g_encoder_params, goal)
 
             qf_pi = -jnp.sqrt(jnp.sum((sa_repr - g_repr) ** 2, axis=-1))
@@ -899,7 +1042,7 @@ if __name__ == "__main__":
             obs = transitions.observation[:, :args.obs_dim]
             action = transitions.action
             
-            sa_repr = sa_encoder.apply(sa_encoder_params, obs, action)
+            sa_repr = sa_encoder.apply(sa_encoder_params, jnp.concatenate([obs, action], axis=-1))
             g_repr = g_encoder.apply(g_encoder_params, transitions.observation[:, args.obs_dim:])
                 
             if args.memory_bank:
